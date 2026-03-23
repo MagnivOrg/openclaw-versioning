@@ -9,6 +9,9 @@ if [ ! -d .git ]; then
   exit 1
 fi
 
+MANUAL=false
+[ "${1:-}" = "--manual" ] && MANUAL=true
+
 PENDING="$WORKSPACE/pending_commits.jsonl"
 
 # ─── Resolve tracked files ────────────────────────────────────────────
@@ -77,19 +80,21 @@ fi
 # Always use the actual staged file list as the source of truth
 STAGED_FILES=$(git diff --cached --name-only | tr '\n' ' ' | sed 's/ $//')
 
-# If no pending log entries, changes came from the CLI
-if [ "$HAS_PENDING" = false ] || [ "$COUNT" -eq 0 ]; then
-  MSG="Auto-commit (cli): $STAGED_FILES
-
-Triggered by: cli
-Turns: 0"
+if [ "$MANUAL" = true ]; then
+  PREFIX="Manual commit"
+elif [ "$HAS_PENDING" = false ] || [ "$COUNT" -eq 0 ]; then
+  PREFIX="Auto-commit (cli)"
 else
-  if [ -z "$USERS" ]; then USERS="unknown"; fi
-  MSG="Auto-commit: $STAGED_FILES
+  PREFIX="Auto-commit"
+fi
+
+if [ -z "$USERS" ]; then USERS="unknown"; fi
+[ "$HAS_PENDING" = false ] || [ "$COUNT" -eq 0 ] && USERS="cli"
+
+MSG="${PREFIX}: $STAGED_FILES
 
 Triggered by: ${USERS}
 Turns: ${COUNT}"
-fi
 
 git commit -m "$MSG"
 SHORT_HASH=$(git rev-parse --short HEAD)

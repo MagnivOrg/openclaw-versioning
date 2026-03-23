@@ -81,9 +81,9 @@ bash {baseDir}/scripts/snapshot.sh "description"
 ```
 
 ### `commit`
-Flush pending changes now — runs the same commit that the cron would run, without waiting for the next cycle. Use when you want to force an immediate commit outside the 5-minute schedule.
+Flush pending changes now as a manual commit. Commits are labeled "Manual commit" to distinguish from auto-commits by the cron.
 ```bash
-bash {baseDir}/scripts/commit.sh
+bash {baseDir}/scripts/commit.sh --manual
 ```
 
 ## Auto-Versioning
