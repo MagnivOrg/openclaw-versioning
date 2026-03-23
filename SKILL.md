@@ -68,11 +68,25 @@ bash {baseDir}/scripts/diff.sh [commit] [commit2]
 ```
 
 ### `rollback <commit>`
-Restore tracked files to a previous version. Creates a new commit recording the rollback.
+Restore ALL tracked files to a previous version. Creates a new commit recording the rollback.
 **Always show the user what will change before rolling back.**
 ```bash
 bash {baseDir}/scripts/rollback.sh <commit>
 ```
+
+### `restore <file> <commit>`
+Restore a **single file** to its state before a specific commit — without touching anything else. Use this when the user wants to undo a specific file's change.
+
+To find the right commit: run `log`, read the `--- Change log ---` section in each commit body to identify which turn changed the file, then pass that commit hash.
+```bash
+bash {baseDir}/scripts/restore.sh <file> <commit>
+```
+
+**Example undo flow:**
+1. User says "undo Noam's change to AGENTS.md from earlier"
+2. Run `log` to find the commit containing Noam's change to AGENTS.md
+3. Read the change log in that commit body to confirm the right entry
+4. Run `restore.sh AGENTS.md <hash>`
 
 ### `snapshot <message>`
 Manually create a named checkpoint.

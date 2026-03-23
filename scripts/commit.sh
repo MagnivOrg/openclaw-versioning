@@ -14,7 +14,7 @@ MANUAL=false
 
 PENDING="$WORKSPACE/pending_commits.jsonl"
 
-# ─── Resolve tracked files ─────────────────────────────────────────
+# ─── Resolve tracked files ────────────────────────────────────────────
 CFG="$WORKSPACE/.openclaw-versioning.json"
 TRACKED=()
 if [ -f "$CFG" ] && command -v jq &>/dev/null; then
@@ -31,7 +31,6 @@ if [ ${#TRACKED[@]} -eq 0 ]; then
 fi
 
 # ─── Stage any unstaged changes to tracked files ─────────────────────
-# This catches CLI-initiated changes that bypassed the message hooks
 for f in "${TRACKED[@]}"; do
   git add "$f" 2>/dev/null || true
 done
@@ -44,10 +43,11 @@ if git diff --cached --quiet 2>/dev/null; then
 fi
 
 # ─── Build commit message ─────────────────────────────────────────────
+STAGED_FILES=$(git diff --cached --name-only | tr '\n' ' ' | sed 's/ $//')
 USERS=""
-FILES=""
 COUNT=0
 HAS_PENDING=false
+CHANGELOG=""
 
 if [ -f "$PENDING" ] && [ -s "$PENDING" ]; then
   HAS_PENDING=true
@@ -57,12 +57,23 @@ if [ -f "$PENDING" ] && [ -s "$PENDING" ]; then
 
     if command -v jq &>/dev/null; then
       user=$(echo "$line" | jq -r '.user // "unknown"' 2>/dev/null || echo "unknown")
+      ts=$(echo "$line" | jq -r '.ts // 0' 2>/dev/null || echo "0")
+      channel=$(echo "$line" | jq -r '.channel // "unknown"' 2>/dev/null || echo "unknown")
       files=$(echo "$line" | jq -r '(.files // []) | join(", ")' 2>/dev/null || echo "")
     else
       user=$(echo "$line" | grep -o '"user":"[^"]*"' | cut -d'"' -f4 || echo "unknown")
-      files=""
+      ts="0"; channel="unknown"; files=""
     fi
 
+    # Format timestamp as readable date
+    if [ "$ts" != "0" ] && command -v date &>/dev/null; then
+      ts_sec=$((ts / 1000))
+      readable=$(date -r "$ts_sec" "+%Y-%m-%d %H:%M:%S" 2>/dev/null || echo "$ts")
+    else
+      readable="$ts"
+    fi
+
+    # Accumulate unique users
     if [ -n "$user" ] && [ "$user" != "unknown" ]; then
       if [ -z "$USERS" ]; then
         USERS="$user"
@@ -71,38 +82,42 @@ if [ -f "$PENDING" ] && [ -s "$PENDING" ]; then
       fi
     fi
 
-    if [ -n "$files" ]; then
-      FILES="${FILES:+$FILES, }$files"
-    fi
+    # Build per-turn changelog line
+    CHANGELOG="${CHANGELOG}  [$readable] $user ($channel): $files\n"
   done < "$PENDING"
 fi
 
-# Always use the actual staged file list as the source of truth
-STAGED_FILES=$(git diff --cached --name-only | tr '\n' ' ' | sed 's/ $//')
-
+# ─── Determine prefix ─────────────────────────────────────────────────
 if [ "$MANUAL" = true ]; then
   PREFIX="Manual commit"
 elif [ "$HAS_PENDING" = false ] || [ "$COUNT" -eq 0 ]; then
   PREFIX="Auto-commit (cli)"
+  USERS="cli"
 else
   PREFIX="Auto-commit"
 fi
 
 if [ -z "$USERS" ]; then USERS="unknown"; fi
-[ "$HAS_PENDING" = false ] || [ "$COUNT" -eq 0 ] && USERS="cli"
 
-MSG="${PREFIX}: $STAGED_FILES
+# ─── Assemble full message ────────────────────────────────────────────
+if [ -n "$CHANGELOG" ]; then
+  MSG="${PREFIX}: $STAGED_FILES
+
+Triggered by: ${USERS}
+Turns: ${COUNT}
+
+--- Change log ---
+$(printf "%b" "$CHANGELOG")"
+else
+  MSG="${PREFIX}: $STAGED_FILES
 
 Triggered by: ${USERS}
 Turns: ${COUNT}"
+fi
 
 git commit -m "$MSG"
 SHORT_HASH=$(git rev-parse --short HEAD)
 
 [ -f "$PENDING" ] && > "$PENDING"
 
-if [ "$HAS_PENDING" = false ] || [ "$COUNT" -eq 0 ]; then
-  echo "Committed $SHORT_HASH — cli changes"
-else
-  echo "Committed $SHORT_HASH — $COUNT pending turn(s) by: $USERS"
-fi
+echo "Committed $SHORT_HASH — $PREFIX by: $USERS ($STAGED_FILES)"
