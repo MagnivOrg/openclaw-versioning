@@ -12,11 +12,14 @@ fi
 PENDING="$WORKSPACE/pending_commits.jsonl"
 
 # ─── Resolve tracked files ────────────────────────────────────────────
-CFG="$WORKSPACE/.agent-versioning.json"
+CFG="$WORKSPACE/.openclaw-versioning.json"
+TRACKED=()
 if [ -f "$CFG" ] && command -v jq &>/dev/null; then
-  mapfile -t TRACKED < <(jq -r '.tracked[]?' "$CFG" 2>/dev/null)
+  while IFS= read -r item; do
+    TRACKED+=("$item")
+  done < <(jq -r '.tracked[]?' "$CFG" 2>/dev/null)
 fi
-if [ ${#TRACKED[@]:-0} -eq 0 ]; then
+if [ ${#TRACKED[@]} -eq 0 ]; then
   TRACKED=(
     "AGENTS.md" "SOUL.md" "IDENTITY.md" "USER.md" "TOOLS.md"
     "HEARTBEAT.md" "BOOT.md" "BOOTSTRAP.md" "MEMORY.md"
@@ -71,18 +74,18 @@ if [ -f "$PENDING" ] && [ -s "$PENDING" ]; then
   done < "$PENDING"
 fi
 
+# Always use the actual staged file list as the source of truth
+STAGED_FILES=$(git diff --cached --name-only | tr '\n' ' ' | sed 's/ $//')
+
 # If no pending log entries, changes came from the CLI
 if [ "$HAS_PENDING" = false ] || [ "$COUNT" -eq 0 ]; then
-  CLI_FILES=$(git diff --cached --name-only | tr '\n' ' ' | sed 's/ $//')
-  MSG="Auto-commit (cli): $CLI_FILES
+  MSG="Auto-commit (cli): $STAGED_FILES
 
 Triggered by: cli
 Turns: 0"
 else
   if [ -z "$USERS" ]; then USERS="unknown"; fi
-  SUMMARY="Auto-commit: ${FILES:-$COUNT change(s)}"
-  [ "$COUNT" -gt 1 ] && SUMMARY="Auto-commit: $COUNT changes"
-  MSG="${SUMMARY}
+  MSG="Auto-commit: $STAGED_FILES
 
 Triggered by: ${USERS}
 Turns: ${COUNT}"

@@ -26,7 +26,7 @@ const handler = async (event: any) => {
     writeFileSync(join(workspace, ".version-context"), JSON.stringify(ctx));
   } catch (err) {
     console.error(
-      "[agent-versioning-capture] Failed to write context:",
+      "[openclaw-versioning-capture] Failed to write context:",
       err instanceof Error ? err.message : String(err)
     );
   }

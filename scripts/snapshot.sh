@@ -17,9 +17,9 @@ TRACKED=(
   ".gitignore" "skills/" "hooks/"
 )
 
-# Merge in any custom tracked list from .agent-versioning.json
-if [ -f "$WORKSPACE/.agent-versioning.json" ] && command -v jq &>/dev/null; then
-  CUSTOM=$(jq -r '.tracked[]?' "$WORKSPACE/.agent-versioning.json" 2>/dev/null || true)
+# Merge in any custom tracked list from .openclaw-versioning.json
+if [ -f "$WORKSPACE/.openclaw-versioning.json" ] && command -v jq &>/dev/null; then
+  CUSTOM=$(jq -r '.tracked[]?' "$WORKSPACE/.openclaw-versioning.json" 2>/dev/null || true)
   if [ -n "$CUSTOM" ]; then
     while IFS= read -r item; do
       TRACKED+=("$item")
