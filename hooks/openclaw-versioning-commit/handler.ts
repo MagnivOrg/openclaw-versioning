@@ -24,7 +24,7 @@ function run(cmd: string, cwd: string): string {
 }
 
 function getTracked(workspace: string): string[] {
-  const cfgPath = join(workspace, ".agent-versioning.json");
+  const cfgPath = join(workspace, ".openclaw-versioning.json");
   if (existsSync(cfgPath)) {
     try {
       const cfg = JSON.parse(readFileSync(cfgPath, "utf-8"));
@@ -57,7 +57,7 @@ const handler = async (event: any) => {
   const lockDir = join(workspace, ".version-lock");
   const acquired = await acquireLock(lockDir);
   if (!acquired) {
-    console.error("[agent-versioning-commit] Could not acquire lock, skipping");
+    console.error("[openclaw-versioning-commit] Could not acquire lock, skipping");
     return;
   }
 
@@ -93,7 +93,7 @@ const handler = async (event: any) => {
     }
   } catch (err) {
     console.error(
-      "[agent-versioning-commit] Error:",
+      "[openclaw-versioning-commit] Error:",
       err instanceof Error ? err.message : String(err)
     );
   } finally {

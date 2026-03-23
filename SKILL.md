@@ -1,11 +1,11 @@
 ---
-name: agent-versioning
+name: openclaw-versioning
 description: Version control for the agent's own workspace files — tracks who changed what and when, with git commits attributed to the user who triggered each change. Use when asked to check version history, view diffs, roll back files, take a snapshot, or set up auto-versioning. Triggers on phrases like "what changed", "undo that change", "roll back to", "show history", "take a snapshot", "set up versioning", "who changed".
 user-invocable: true
 metadata: {"openclaw":{"requires":{"bins":["git"]}}}
 ---
 
-# Agent Versioning
+# OpenClaw Versioning
 
 Auto-commits workspace config changes after every agent turn, attributed to whoever sent the message.
 
@@ -22,7 +22,7 @@ This copies the hooks, initializes the git repo if needed, and takes a first sna
 **Step 2** — After the gateway restarts, register the commit cron by calling the `cron.add` tool:
 ```json
 {
-  "name": "agent-versioning-commit",
+  "name": "openclaw-versioning-commit",
   "cron": "*/10 * * * *",
   "message": "bash {baseDir}/scripts/commit.sh",
   "session": "isolated"
@@ -32,7 +32,7 @@ Confirm with the user once the cron appears in `openclaw cron list`.
 
 To verify hooks are active:
 ```bash
-openclaw hooks list | grep agent-versioning
+openclaw hooks list | grep openclaw-versioning
 ```
 
 ## Commands
@@ -41,13 +41,13 @@ openclaw hooks list | grep agent-versioning
 Register the auto-commit cron if not already present. Call the `cron.add` tool:
 ```json
 {
-  "name": "agent-versioning-commit",
+  "name": "openclaw-versioning-commit",
   "cron": "*/10 * * * *",
   "message": "bash {baseDir}/scripts/commit.sh",
   "session": "isolated"
 }
 ```
-Skip if `openclaw cron list` already shows `agent-versioning-commit`.
+Skip if `openclaw cron list` already shows `openclaw-versioning-commit`.
 
 ### `status`
 Show current versioning state — latest snapshot, uncommitted changes, tracked files. Print the output verbatim.
@@ -89,12 +89,12 @@ bash {baseDir}/scripts/commit.sh
 ## Auto-Versioning
 
 The two installed hooks handle everything automatically:
-- `agent-versioning-capture` fires on `message:received` — saves sender identity to `.version-context`
-- `agent-versioning-commit` fires on `message:sent` — stages tracked files, commits with sender attribution if anything changed
+- `openclaw-versioning-capture` fires on `message:received` — saves sender identity to `.version-context`
+- `openclaw-versioning-commit` fires on `message:sent` — stages tracked files, commits with sender attribution if anything changed
 
 Tracked by default: `AGENTS.md`, `SOUL.md`, `IDENTITY.md`, `USER.md`, `TOOLS.md`, `HEARTBEAT.md`, `BOOT.md`, `BOOTSTRAP.md`, `MEMORY.md`, `.gitignore`, `skills/`, `hooks/`
 
-To override, create `<workspace>/.agent-versioning.json`:
+To override, create `<workspace>/.openclaw-versioning.json`:
 ```json
 { "tracked": ["AGENTS.md", "SOUL.md", "skills/", "hooks/"] }
 ```

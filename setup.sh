@@ -44,7 +44,7 @@ header "Installing hooks"
 
 mkdir -p "$HOOKS_DEST"
 
-HOOKS=("agent-versioning-capture" "agent-versioning-commit")
+HOOKS=("openclaw-versioning-capture" "openclaw-versioning-commit")
 for hook in "${HOOKS[@]}"; do
   src="$SCRIPT_DIR/hooks/$hook"
   dest="$HOOKS_DEST/$hook"
@@ -144,14 +144,14 @@ printf "  ${BRGREEN}✓  agent versioning is active${RESET}\n"
 printf "  ${GRAY}────────────────────────────────────────────────${RESET}\n"
 gap
 printf "  ${GRAY}Restart the openclaw gateway to load the hooks, then${RESET}\n"
-printf "  ${GRAY}say ${BRCYAN}/agent-versioning setup${GRAY} to finish cron registration.${RESET}\n"
+printf "  ${GRAY}say ${BRCYAN}/openclaw-versioning setup${GRAY} to finish cron registration.${RESET}\n"
 gap
 printf "  ${GRAY}Commands (say these to your agent):${RESET}\n"
-printf "  ${BRCYAN}/agent-versioning setup${RESET}\n"
-printf "  ${BRCYAN}/agent-versioning status${RESET}\n"
-printf "  ${BRCYAN}/agent-versioning log${RESET}\n"
-printf "  ${BRCYAN}/agent-versioning diff${RESET} ${DIM}<hash>${RESET}\n"
-printf "  ${BRCYAN}/agent-versioning rollback${RESET} ${DIM}<hash>${RESET}\n"
-printf "  ${BRCYAN}/agent-versioning snapshot${RESET} ${DIM}\"description\"${RESET}\n"
-printf "  ${BRCYAN}/agent-versioning commit${RESET}\n"
+printf "  ${BRCYAN}/openclaw-versioning setup${RESET}\n"
+printf "  ${BRCYAN}/openclaw-versioning status${RESET}\n"
+printf "  ${BRCYAN}/openclaw-versioning log${RESET}\n"
+printf "  ${BRCYAN}/openclaw-versioning diff${RESET} ${DIM}<hash>${RESET}\n"
+printf "  ${BRCYAN}/openclaw-versioning rollback${RESET} ${DIM}<hash>${RESET}\n"
+printf "  ${BRCYAN}/openclaw-versioning snapshot${RESET} ${DIM}\"description\"${RESET}\n"
+printf "  ${BRCYAN}/openclaw-versioning commit${RESET}\n"
 gap
