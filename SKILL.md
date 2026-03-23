@@ -55,10 +55,21 @@ Show current versioning state — latest snapshot, uncommitted changes, tracked 
 bash {baseDir}/scripts/status.sh
 ```
 
-### `log [count]`
-Show version history. Default: last 20 entries. Run the script and print the output verbatim — do not summarize or reformat it.
+### `log [count] [--detail]`
+Show version history. Run the script and print the output verbatim — do not summarize or reformat it, do not run any additional git commands.
+
 ```bash
-bash {baseDir}/scripts/log.sh [count]
+# Default: no args — script defaults to 5 commits
+bash {baseDir}/scripts/log.sh
+
+# With full body per commit
+bash {baseDir}/scripts/log.sh --detail
+
+# User specifies a count
+bash {baseDir}/scripts/log.sh 10
+
+# User specifies count and detail
+bash {baseDir}/scripts/log.sh 10 --detail
 ```
 
 ### `diff [commit] [commit2]`

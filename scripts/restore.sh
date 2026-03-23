@@ -34,12 +34,21 @@ fi
 
 TARGET_SHORT=$(git rev-parse --short "$COMMIT")
 
+# Read sender identity from capture hook context
+USER="unknown"
+CHANNEL="unknown"
+CTX="$WORKSPACE/.version-context"
+if [ -f "$CTX" ] && command -v jq &>/dev/null; then
+  USER=$(jq -r '.user // "unknown"' "$CTX" 2>/dev/null || echo "unknown")
+  CHANNEL=$(jq -r '.channel // "unknown"' "$CTX" 2>/dev/null || echo "unknown")
+fi
+
 # Restore file to its state before the target commit and stage it
 git checkout "${COMMIT}^" -- "$FILE"
 git add "$FILE"
 
 # Log to pending so the next commit includes restore attribution
-ENTRY=$(printf '{"ts":%s,"user":"restore","userId":"restore","channel":"cli","files":["%s"]}' "$(date +%s000)" "$FILE")
+ENTRY=$(printf '{"ts":%s,"user":"%s","userId":"%s","channel":"%s","files":["restore: %s"]}' "$(date +%s000)" "$USER" "$USER" "$CHANNEL" "$FILE")
 printf '%s\n' "$ENTRY" >> "$WORKSPACE/pending_commits.jsonl"
 
-echo "Staged restore of $FILE to its state before $TARGET_SHORT — commit when ready with /openclaw-versioning commit"
+echo "Staged restore of $FILE to before $TARGET_SHORT (triggered by: $USER) — commit when ready with /openclaw-versioning commit"
