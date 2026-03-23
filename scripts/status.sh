@@ -10,21 +10,22 @@ if [ ! -d .git ]; then
   exit 0
 fi
 
-echo "=== Agent Versioning Status ==="
+echo "=== OpenClaw Versioning Status ==="
 echo ""
 
 echo "Latest snapshot:"
-git log --oneline --format="  %h  %ai  %an  %s" -1 2>/dev/null || echo "  (no snapshots yet)"
-echo ""
-
-TOTAL=$(git rev-list --count HEAD 2>/dev/null || echo "0")
-echo "Total snapshots: $TOTAL"
+git log --format="  %h  %ai  %an  %s" -1 2>/dev/null || echo "  (no snapshots yet)"
 echo ""
 
 CHANGES=$(git diff HEAD --name-only 2>/dev/null | wc -l | tr -d ' ')
 if [ "$CHANGES" -gt 0 ]; then
   echo "Uncommitted changes ($CHANGES files):"
-  git diff HEAD --name-only 2>/dev/null | sed 's/^/  /'
+  git diff HEAD --name-only 2>/dev/null | while IFS= read -r file; do
+    # Show file name and a one-line summary of what changed
+    added=$(git diff HEAD -- "$file" 2>/dev/null | grep -c '^+[^+]' || true)
+    removed=$(git diff HEAD -- "$file" 2>/dev/null | grep -c '^-[^-]' || true)
+    printf "  %-45s +%s -%s\n" "$file" "$added" "$removed"
+  done
 else
   echo "No uncommitted changes."
 fi
