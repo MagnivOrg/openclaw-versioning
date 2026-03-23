@@ -14,7 +14,7 @@ MANUAL=false
 
 PENDING="$WORKSPACE/pending_commits.jsonl"
 
-# ─── Resolve tracked files ────────────────────────────────────────────
+# ─── Resolve tracked files ───────────────────────────────────────────
 CFG="$WORKSPACE/.openclaw-versioning.json"
 TRACKED=()
 if [ -f "$CFG" ] && command -v jq &>/dev/null; then
