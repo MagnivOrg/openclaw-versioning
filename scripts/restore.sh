@@ -32,18 +32,14 @@ if ! git show "$COMMIT" -- "$FILE" | grep -q "." 2>/dev/null; then
   exit 1
 fi
 
-CURRENT_SHORT=$(git rev-parse --short HEAD)
 TARGET_SHORT=$(git rev-parse --short "$COMMIT")
 
-# Restore file to its state before the target commit
+# Restore file to its state before the target commit and stage it
 git checkout "${COMMIT}^" -- "$FILE"
 git add "$FILE"
-git commit -m "Restore $FILE to before $TARGET_SHORT
 
-Reverted: $FILE
-From commit: $TARGET_SHORT
-Previous HEAD: $CURRENT_SHORT
-Triggered by: restore"
+# Log to pending so the next commit includes restore attribution
+ENTRY=$(printf '{"ts":%s,"user":"restore","userId":"restore","channel":"cli","files":["%s"]}' "$(date +%s000)" "$FILE")
+printf '%s\n' "$ENTRY" >> "$WORKSPACE/pending_commits.jsonl"
 
-NEW_SHORT=$(git rev-parse --short HEAD)
-echo "Restored $FILE to its state before $TARGET_SHORT. New commit: $NEW_SHORT"
+echo "Staged restore of $FILE to its state before $TARGET_SHORT — commit when ready with /openclaw-versioning commit"
