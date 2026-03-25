@@ -19,14 +19,9 @@ bash {baseDir}/setup.sh
 ```
 Installs the hooks, initializes the git repo, and takes a first snapshot. Tell the user to restart their openclaw gateway after this completes.
 
-**Step 2** — After the gateway restarts, register the commit cron by calling the `cron.add` tool:
-```json
-{
-  "name": "openclaw-versioning-commit",
-  "cron": "*/10 * * * *",
-  "message": "bash {baseDir}/scripts/commit.sh",
-  "session": "isolated"
-}
+**Step 2** — After the gateway restarts, register the commit cron:
+```bash
+openclaw cron add --name "openclaw-versioning-commit" --cron "*/10 * * * *" --message "bash {baseDir}/scripts/commit.sh" --session isolated --announce --best-effort-deliver
 ```
 Confirm with the user once the cron appears in `openclaw cron list`.
 
