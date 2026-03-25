@@ -1,6 +1,6 @@
 # openclaw-versioning
 
-A versioning skill for [OpenClaw](https://openclaw.dev) agents. Automatically commits workspace config changes after every agent turn, attributed to whoever sent the message. Gives you a full audit trail of who changed what and when, with rollback and diff tools accessible directly from chat.
+A versioning skill for [OpenClaw](https://openclaw.dev) agents. Between turns, tracked workspace files are diffed and staged with sender attribution. A cron job batches those staged changes into a git commit every 10 minutes. Gives you a full audit trail of who changed what and when, with rollback and diff tools accessible directly from chat.
 
 ---
 
@@ -54,7 +54,7 @@ After install, `.openclaw-versioning.json` will exist in your workspace. Edit it
 { "tracked": ["AGENTS.md", "SOUL.md", "skills/", "hooks/"] }
 ```
 
-The defaults are defined in [`defaults.json`](./defaults.json) at the repo root.
+The defaults are enumerated in `setup.sh` and written on first install.
 
 ---
 
@@ -91,16 +91,7 @@ Each hook directory contains a `HOOK.md` with frontmatter required for OpenClaw 
 
 | File | Description |
 |---|---|
-| `.openclaw-versioning.json` | Tracked files config. Seeded from `defaults.json` on install. Edit to customize. |
+| `.openclaw-versioning.json` | Tracked files config. Written by `setup.sh` on first install. Edit to customize. |
 | `.version-context` | Temporary file written by the capture hook, read by the commit hook, then deleted. Never committed. |
 | `pending_commits.jsonl` | Append-only log of attribution entries since the last commit. Cleared after each `commit.sh` run. Never committed. |
 
----
-
-## Contributing
-
-The tracked files list defaults live in [`defaults.json`](./defaults.json). Adding a new default means editing that one file — `setup.sh`, the scripts, and the hook handlers all read from the workspace `.openclaw-versioning.json` which is seeded from it at install time.
-
-Hook handlers are TypeScript (`handler.ts`). They run in the openclaw hook runtime — no build step required, the runtime handles transpilation.
-
-Pull requests welcome.

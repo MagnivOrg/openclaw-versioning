@@ -133,6 +133,7 @@ if [ ! -f "$WORKSPACE_CFG" ]; then
     "BOOTSTRAP.md",
     "MEMORY.md",
     ".gitignore",
+    ".openclaw-versioning.json",
     "skills/",
     "hooks/"
   ]

@@ -117,7 +117,7 @@ The two installed hooks handle everything automatically:
 - `openclaw-versioning-capture` fires on `message:received` — saves sender identity to `.version-context`
 - `openclaw-versioning-commit` fires on `message:sent` — stages tracked files, commits with sender attribution if anything changed
 
-Tracked by default: `AGENTS.md`, `SOUL.md`, `IDENTITY.md`, `USER.md`, `TOOLS.md`, `HEARTBEAT.md`, `BOOT.md`, `BOOTSTRAP.md`, `MEMORY.md`, `.gitignore`, `skills/`, `hooks/`
+Tracked by default: `AGENTS.md`, `SOUL.md`, `IDENTITY.md`, `USER.md`, `TOOLS.md`, `HEARTBEAT.md`, `BOOT.md`, `BOOTSTRAP.md`, `MEMORY.md`, `.gitignore`, `.openclaw-versioning.json`, `skills/`, `hooks/`
 
 To override, create `<workspace>/.openclaw-versioning.json`:
 ```json

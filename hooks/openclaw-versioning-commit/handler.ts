@@ -9,12 +9,6 @@ import {
 } from "node:fs";
 import { join } from "node:path";
 
-const DEFAULT_TRACKED = [
-  "AGENTS.md", "SOUL.md", "IDENTITY.md", "USER.md",
-  "TOOLS.md", "HEARTBEAT.md", "BOOT.md", "BOOTSTRAP.md",
-  "MEMORY.md", ".gitignore", "skills/", "hooks/",
-];
-
 function run(cmd: string, cwd: string): string {
   try {
     return execSync(cmd, { cwd, encoding: "utf-8", timeout: 15_000 }).trim();
@@ -25,13 +19,11 @@ function run(cmd: string, cwd: string): string {
 
 function getTracked(workspace: string): string[] {
   const cfgPath = join(workspace, ".openclaw-versioning.json");
-  if (existsSync(cfgPath)) {
-    try {
-      const cfg = JSON.parse(readFileSync(cfgPath, "utf-8"));
-      if (Array.isArray(cfg.tracked) && cfg.tracked.length > 0) return cfg.tracked;
-    } catch {}
-  }
-  return DEFAULT_TRACKED;
+  try {
+    const cfg = JSON.parse(readFileSync(cfgPath, "utf-8"));
+    if (Array.isArray(cfg.tracked) && cfg.tracked.length > 0) return cfg.tracked;
+  } catch {}
+  return [];
 }
 
 async function acquireLock(lockDir: string): Promise<boolean> {
