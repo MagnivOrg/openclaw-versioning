@@ -199,6 +199,7 @@ printf "  ${BRCYAN}/openclaw-versioning status${RESET}\n"
 printf "  ${BRCYAN}/openclaw-versioning log${RESET}\n"
 printf "  ${BRCYAN}/openclaw-versioning diff${RESET} ${DIM}<hash>${RESET}\n"
 printf "  ${BRCYAN}/openclaw-versioning rollback${RESET} ${DIM}<hash>${RESET}\n"
+printf "  ${BRCYAN}/openclaw-versioning restore${RESET} ${DIM}<file> <hash>${RESET}\n"
 printf "  ${BRCYAN}/openclaw-versioning snapshot${RESET} ${DIM}\"description\"${RESET}\n"
 printf "  ${BRCYAN}/openclaw-versioning commit${RESET}\n"
 gap
