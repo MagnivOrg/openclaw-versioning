@@ -18,15 +18,18 @@ success() { printf "  ${CHECK} %b\n" "$*"; }
 warn()    { printf "  ${WARN} %b\n" "$*"; }
 fail()    { printf "  ${CROSS} %b\n" "$*"; exit 1; }
 gap()     { echo ""; }
-header()  { printf "\n  ${BRCYAN}▸ %s${RESET}\n\n" "$*"; }
+header()  { printf "\n  ${BRMAGENTA}◆${RESET}  ${BRWHITE}%s${RESET}\n\n" "$*"; }
+divider() { printf "  ${GRAY}%s${RESET}\n" "────────────────────────────────────────────────"; }
 
-echo ""
-printf "  ${BRMAGENTA}◆${RESET}  ${BRWHITE}agent versioning — setup${RESET}\n"
-printf "  ${GRAY}version control for your openclaw workspace${RESET}\n"
+gap
+divider
+printf "  ${BRMAGENTA}◆◆${RESET}  ${BRWHITE}openclaw-versioning${RESET}\n"
+printf "     ${GRAY}workspace version control — setup${RESET}\n"
+divider
 gap
 
 # ─── Prerequisites ────────────────────────────────────────────────────
-header "Checking prerequisites"
+header "Prerequisites"
 
 command -v git &>/dev/null || fail "git not found — install it first"
 success "git $(git --version | awk '{print $3}')"
@@ -36,7 +39,7 @@ success "workspace ${GRAY}$WORKSPACE${RESET}"
 
 command -v openclaw &>/dev/null || warn "openclaw CLI not found — you'll need to enable hooks manually"
 if command -v openclaw &>/dev/null; then
-  success "openclaw $(openclaw --version 2>&1 | head -1 | awk '{print $2}')"
+  success "openclaw $(openclaw --version 2>/dev/null | head -1 | awk '{print $3}')"
 fi
 
 # ─── Install hooks ────────────────────────────────────────────────────
@@ -64,39 +67,59 @@ for hook in "${HOOKS[@]}"; do
   success "Installed ${BRCYAN}${hook}${RESET}"
 done
 
-gap
+# ─── Enable hooks via config + restart ────────────────────────────────
+header "Activating hooks"
 
-# Enable hooks via CLI if available
-if command -v openclaw &>/dev/null; then
-  step "Enabling hooks..."
-  for hook in "${HOOKS[@]}"; do
-    if openclaw hooks enable "$hook" 2>/dev/null; then
-      success "Enabled ${BRCYAN}${hook}${RESET}"
+OPENCLAW_CFG="${OPENCLAW_CONFIG:-$HOME/.openclaw/openclaw.json}"
+
+if [ -f "$OPENCLAW_CFG" ] && command -v jq &>/dev/null; then
+  TMP=$(mktemp)
+  jq '
+    .hooks.internal.enabled = true |
+    .hooks.internal.entries["openclaw-versioning-capture"].enabled = true |
+    .hooks.internal.entries["openclaw-versioning-commit"].enabled = true
+  ' "$OPENCLAW_CFG" > "$TMP" && mv "$TMP" "$OPENCLAW_CFG"
+  success "Hooks enabled in config"
+
+  if command -v openclaw &>/dev/null; then
+    gap
+    step "Restarting gateway..."
+    if openclaw gateway restart >/dev/null 2>&1; then
+      success "Gateway restarted — hooks are live"
     else
-      warn "Could not enable $hook — run: ${BRCYAN}openclaw hooks enable $hook${RESET}"
+      warn "Gateway restart failed — run: ${BRCYAN}openclaw gateway restart${RESET}"
     fi
-  done
+  else
+    warn "Restart the gateway to activate hooks: ${BRCYAN}openclaw gateway restart${RESET}"
+  fi
 else
-  warn "Enable hooks manually:"
+  warn "Could not update hook config — enable manually after restarting:"
   for hook in "${HOOKS[@]}"; do
     printf "    ${GRAY}openclaw hooks enable %s${RESET}\n" "$hook"
   done
 fi
 
-# ─── Register cron ────────────────────────────────────────────────
+# ─── Register cron ────────────────────────────────────────────────────
 header "Registering cron"
 
 if command -v openclaw &>/dev/null; then
   CRON_NAME="openclaw-versioning-commit"
   CRON_CMD="bash $SCRIPT_DIR/scripts/commit.sh"
-  if openclaw cron add --name "$CRON_NAME" --schedule "*/10 * * * *" --message "$CRON_CMD" --session isolated 2>/dev/null; then
+  if openclaw cron list 2>/dev/null | grep -q "$CRON_NAME"; then
+    success "Cron ${BRCYAN}${CRON_NAME}${RESET} already registered"
+  elif openclaw cron add \
+    --name "$CRON_NAME" \
+    --cron "*/10 * * * *" \
+    --message "$CRON_CMD" \
+    --session isolated \
+    --no-deliver >/dev/null 2>&1; then
     success "Registered ${BRCYAN}${CRON_NAME}${RESET} (every 10 min)"
   else
-    warn "Cron may already be registered, or registration failed — check with: ${BRCYAN}openclaw cron list${RESET}"
+    warn "Cron registration failed — check with: ${BRCYAN}openclaw cron list${RESET}"
   fi
 else
   warn "Register cron manually after gateway starts:"
-  printf "    ${GRAY}openclaw cron add --name openclaw-versioning-commit --schedule '*/10 * * * *' --message 'bash %s/scripts/commit.sh' --session isolated${RESET}\n" "$SCRIPT_DIR"
+  printf "    ${GRAY}openclaw cron add --name openclaw-versioning-commit --cron '*/10 * * * *' --message 'bash %s/scripts/commit.sh' --session isolated --no-deliver${RESET}\n" "$SCRIPT_DIR"
 fi
 
 # ─── Initialize git repo ──────────────────────────────────────────────
@@ -110,7 +133,6 @@ else
   success "Initialized git repository"
 fi
 
-# Write .gitignore if missing
 if [ ! -f "$WORKSPACE/.gitignore" ]; then
   cat > "$WORKSPACE/.gitignore" << 'GITIGNORE'
 # Runtime data
@@ -178,28 +200,21 @@ fi
 
 # ─── Done ─────────────────────────────────────────────────────────────
 gap
-printf "  ${GRAY}────────────────────────────────────────────────${RESET}\n"
-printf "  ${BRGREEN}✓  agent versioning is active${RESET}\n"
-printf "  ${GRAY}────────────────────────────────────────────────${RESET}\n"
+divider
+printf "  ${BRGREEN}✓${RESET}  ${BRWHITE}agent versioning is active${RESET}\n"
+divider
 gap
-printf "  ${BRWHITE}Next steps:${RESET}\n"
-gap
-printf "  ${BRCYAN}1.${RESET} Restart the openclaw gateway:\n"
-printf "     ${GRAY}openclaw gateway restart${RESET}\n"
-printf "  ${BRCYAN}2.${RESET} Enable the hooks:\n"
-printf "     ${GRAY}openclaw hooks enable openclaw-versioning-capture${RESET}\n"
-printf "     ${GRAY}openclaw hooks enable openclaw-versioning-commit${RESET}\n"
-printf "  ${BRCYAN}3.${RESET} Say ${BRCYAN}/openclaw-versioning status${RESET} to verify\n"
-gap
-printf "  ${BRWHITE}To push commits to a remote:${RESET}\n"
-printf "  ${DIM}# set up auth first (gh auth login, SSH key, or HTTPS token)${RESET}\n"
-printf "  ${DIM}cd %s${RESET}\n" "$WORKSPACE"
-printf "  ${DIM}git remote add origin <url>${RESET}\n"
-printf "  ${DIM}# then add to .openclaw-versioning.json:${RESET}\n"
-printf "  ${DIM}# \"git\": { \"remote\": \"origin\", \"branch\": \"main\" }${RESET}\n"
-gap
-printf "  ${BRWHITE}Commands (say these to your agent):${RESET}\n"
+printf "  ${BRWHITE}Verify:${RESET}\n"
 printf "  ${BRCYAN}/openclaw-versioning status${RESET}\n"
+gap
+printf "  ${BRWHITE}Push to a remote (optional):${RESET}\n"
+printf "  ${GRAY}gh auth login${RESET}\n"
+printf "  ${GRAY}cd %s${RESET}\n" "$WORKSPACE"
+printf "  ${GRAY}git remote add origin <url>${RESET}\n"
+printf "  ${GRAY}# add to .openclaw-versioning.json:${RESET}\n"
+printf "  ${GRAY}{ \"git\": { \"remote\": \"origin\", \"branch\": \"main\" } }${RESET}\n"
+gap
+printf "  ${BRWHITE}Commands:${RESET}\n"
 printf "  ${BRCYAN}/openclaw-versioning log${RESET}\n"
 printf "  ${BRCYAN}/openclaw-versioning diff${RESET} ${DIM}<hash>${RESET}\n"
 printf "  ${BRCYAN}/openclaw-versioning rollback${RESET} ${DIM}<hash>${RESET}\n"
