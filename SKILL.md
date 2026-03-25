@@ -11,21 +11,13 @@ Between turns, tracked workspace files are diffed and staged with sender attribu
 
 > **Output rule:** Every command runs a bash script. Always execute the script and send its complete output to the user. Never summarize, skip, or say "same as before" — run it fresh every time.
 
-## Onboarding
+## Commands
 
-**Step 1** — Run setup and restart the gateway:
+### `setup`
+Run first-time setup. Installs hooks, enables them in config, restarts the gateway, registers the cron, initializes the git repo, and takes a first snapshot.
 ```bash
 bash {baseDir}/setup.sh
 ```
-Installs the hooks, initializes the git repo, and takes a first snapshot. Tell the user to restart their openclaw gateway after this completes.
-
-**Step 2** — After the gateway restarts, register the commit cron:
-```bash
-openclaw cron add --name "openclaw-versioning-commit" --cron "*/10 * * * *" --message "bash {baseDir}/scripts/commit.sh" --session isolated --announce --best-effort-deliver
-```
-Confirm with the user once the cron appears in `openclaw cron list`.
-
-## Commands
 
 ### `status`
 Show current versioning state — latest snapshot, uncommitted changes, tracked files. Print the output verbatim.

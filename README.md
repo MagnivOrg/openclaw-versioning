@@ -8,11 +8,11 @@ A versioning skill for [OpenClaw](https://openclaw.dev) agents. Between turns, t
 
 Two hooks handle everything automatically:
 
-1. **`openclaw-versioning-capture`** fires on `message:received` — writes sender identity (name, ID, channel) to `.version-context` in the workspace.
+1. **`openclaw-versioning-capture`** fires on `message:received` and writes sender identity (name, ID, channel) to `.version-context`. This is a temporary handoff, by the time `message:sent` fires, the sender context is gone, so it's captured here first.
 
-2. **`openclaw-versioning-commit`** fires on `message:sent` — diffs tracked files against HEAD, appends an attribution entry to `pending_commits.jsonl`, and stages any changes.
+2. **`openclaw-versioning-commit`** fires on `message:sent`. Diffs tracked files against HEAD, appends an attribution entry to `pending_commits.jsonl`, and stages any changes. Each turn appends independently, so multiple users across multiple channels accumulate before the next commit.
 
-A cron job fires every 10 minutes and runs `commit.sh`, which reads the pending log, builds a commit message with full attribution and a per-turn changelog, commits, and clears the log.
+A cron job fires every 10 minutes and runs `commit.sh`, which reads the full pending log, collects all unique senders, builds a commit message with grouped attribution and a per-turn changelog, commits, and clears the log.
 
 ```
 message:received  →  capture hook  →  .version-context written
@@ -32,39 +32,30 @@ The skill commands (`/openclaw-versioning log`, `diff`, `rollback`, etc.) are av
 
 **Requirements:** `git`, `jq`, Node.js (for hook handlers)
 
-**1.** Run setup:
-```bash
-bash setup.sh
-```
-Copies hooks into the workspace, initializes the git repo, writes `.openclaw-versioning.json`, and takes a first snapshot. setup.sh will prompt you to optionally connect a GitHub remote.
+**1.** Add this repo to your workspace `skills/` directory.
 
-**2.** Restart your openclaw gateway to load the hooks.
+**2.** Say `/openclaw-versioning setup` to your agent.
 
-**3.** Say `/openclaw-versioning setup` to register the auto-commit cron.
-
-**4.** Verify:
+**3.** Verify:
 ```
 /openclaw-versioning status
 ```
 
-**5. (Optional) Push commits to a remote**
+**(Optional) Push commits to a remote:**
 
 ```bash
-gh auth login          # if using GitHub via gh CLI
-# or: set up an SSH key, or use an HTTPS token in the remote URL
-```
-
-```bash
+gh auth login
 cd $OPENCLAW_WORKSPACE
 git remote add origin <url>
 ```
 
 Then add to `.openclaw-versioning.json`:
+
 ```json
 { "git": { "remote": "origin", "branch": "main" } }
 ```
 
-`remote` is the git remote name. If absent, commits stay local — no push, no error.
+If `remote` is absent, commits stay local.
 
 ---
 
@@ -73,21 +64,24 @@ Then add to `.openclaw-versioning.json`:
 After install, `.openclaw-versioning.json` will exist in your workspace. Edit it to customize.
 
 Default tracked files:
+
 ```json
 { "tracked": ["AGENTS.md", "SOUL.md", "IDENTITY.md", "USER.md", "TOOLS.md", "HEARTBEAT.md", "BOOT.md", "BOOTSTRAP.md", "MEMORY.md", ".gitignore", ".openclaw-versioning.json", "skills/", "hooks/"] }
 ```
 
 Override by editing `.openclaw-versioning.json` in your workspace:
+
 ```json
 { "tracked": ["AGENTS.md", "SOUL.md", "skills/", "hooks/"] }
 ```
 
 Push commits to a remote after each cron commit:
+
 ```json
 { "git": { "remote": "origin", "branch": "main" } }
 ```
 
-The skill calls `git push` directly — set up your remote and auth (SSH key, `gh auth login`, or HTTPS token) before enabling this. No auth handling is done by the skill itself.
+The skill calls `git push` directly. You can set up your remote and auth (SSH key, `gh auth login`, or HTTPS token) before enabling this.
 
 The tracked file defaults are inlined in `setup.sh` and written on first install.
 
@@ -127,6 +121,6 @@ Each hook directory contains a `HOOK.md` with frontmatter required for OpenClaw 
 | File | Description |
 |---|---|
 | `.openclaw-versioning.json` | Tracked files config. Written by `setup.sh` on first install. Edit to customize. |
-| `.version-context` | Temporary file written by the capture hook, read by the commit hook, then deleted. Never committed. |
+| `.version-context` | Temporary handoff between the two hooks. The capture hook writes sender identity here on `message:received`; the commit hook reads it on `message:sent` to attribute changes to the right person, then deletes it. Never committed. |
 | `pending_commits.jsonl` | Append-only log of attribution entries since the last commit. Cleared after each `commit.sh` run. Never committed. |
 
