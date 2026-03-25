@@ -184,8 +184,12 @@ printf "  ${GRAY}─────────────────────
 gap
 printf "  ${BRWHITE}Next steps:${RESET}\n"
 gap
-printf "  ${BRCYAN}1.${RESET} Restart the openclaw gateway\n"
-printf "  ${BRCYAN}2.${RESET} Say ${BRCYAN}/openclaw-versioning status${RESET} to verify\n"
+printf "  ${BRCYAN}1.${RESET} Restart the openclaw gateway:\n"
+printf "     ${GRAY}openclaw gateway restart${RESET}\n"
+printf "  ${BRCYAN}2.${RESET} Enable the hooks:\n"
+printf "     ${GRAY}openclaw hooks enable openclaw-versioning-capture${RESET}\n"
+printf "     ${GRAY}openclaw hooks enable openclaw-versioning-commit${RESET}\n"
+printf "  ${BRCYAN}3.${RESET} Say ${BRCYAN}/openclaw-versioning status${RESET} to verify\n"
 gap
 printf "  ${BRWHITE}To push commits to a remote:${RESET}\n"
 printf "  ${DIM}# set up auth first (gh auth login, SSH key, or HTTPS token)${RESET}\n"
