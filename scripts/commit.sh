@@ -112,26 +112,14 @@ SHORT_HASH=$(git rev-parse --short HEAD)
 
 echo "Committed $SHORT_HASH — $PREFIX by: $USERS ($STAGED_FILES)"
 
-# ─── Push to remote if configured ────────────────────────────────────
-CFG="$WORKSPACE/.openclaw-versioning.json"
-GIT_REMOTE=""
-GIT_BRANCH="main"
-if [ -f "$CFG" ] && command -v jq &>/dev/null; then
-  GIT_REMOTE=$(jq -r '.git.remote // ""' "$CFG" 2>/dev/null || true)
-  GIT_BRANCH=$(jq -r '.git.branch // "main"' "$CFG" 2>/dev/null || true)
-fi
+# ─── Push if remote is configured ────────────────────────────────────
+GIT_REMOTE=$(jq -r '.git.remote // ""' "$WORKSPACE/.openclaw-versioning.json" 2>/dev/null || true)
+GIT_BRANCH=$(jq -r '.git.branch // "main"' "$WORKSPACE/.openclaw-versioning.json" 2>/dev/null || true)
 
 if [ -n "$GIT_REMOTE" ]; then
-  PUSH_ERR=$(git push origin "$GIT_BRANCH" 2>&1)
-  if [ $? -eq 0 ]; then
+  if git push "$GIT_REMOTE" "$GIT_BRANCH" 2>/dev/null; then
     echo "Pushed to $GIT_REMOTE ($GIT_BRANCH)"
   else
-    if echo "$PUSH_ERR" | grep -qiE "permission denied|authentication failed|repository not found|invalid username|could not read username"; then
-      echo "Warning: push failed — auth error. Run \`gh auth login\` or check your SSH key."
-    elif echo "$PUSH_ERR" | grep -qiE "could not resolve|connection timed out|network|unreachable|failed to connect"; then
-      echo "Warning: push failed — connection error. Will retry on next commit."
-    else
-      echo "Warning: push failed — $PUSH_ERR"
-    fi
+    echo "Warning: push to $GIT_REMOTE failed — check your git auth and remote config"
   fi
 fi

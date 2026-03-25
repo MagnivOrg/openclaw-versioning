@@ -50,4 +50,17 @@ if ! git diff --cached --quiet; then
   echo "Rolled back from $CURRENT_SHORT to $TARGET_SHORT. New snapshot: $NEW_SHORT"
 else
   echo "No differences — already at $TARGET_SHORT."
+  exit 0
+fi
+
+# ─── Push if remote is configured ────────────────────────────────
+GIT_REMOTE=$(jq -r '.git.remote // ""' "$WORKSPACE/.openclaw-versioning.json" 2>/dev/null || true)
+GIT_BRANCH=$(jq -r '.git.branch // "main"' "$WORKSPACE/.openclaw-versioning.json" 2>/dev/null || true)
+
+if [ -n "$GIT_REMOTE" ]; then
+  if git push "$GIT_REMOTE" "$GIT_BRANCH" 2>/dev/null; then
+    echo "Pushed to $GIT_REMOTE ($GIT_BRANCH)"
+  else
+    echo "Warning: push to $GIT_REMOTE failed — check your git auth and remote config"
+  fi
 fi

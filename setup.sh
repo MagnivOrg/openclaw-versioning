@@ -83,6 +83,22 @@ else
   done
 fi
 
+# ─── Register cron ────────────────────────────────────────────────
+header "Registering cron"
+
+if command -v openclaw &>/dev/null; then
+  CRON_NAME="openclaw-versioning-commit"
+  CRON_CMD="bash $SCRIPT_DIR/scripts/commit.sh"
+  if openclaw cron add --name "$CRON_NAME" --schedule "*/10 * * * *" --message "$CRON_CMD" --session isolated 2>/dev/null; then
+    success "Registered ${BRCYAN}${CRON_NAME}${RESET} (every 10 min)"
+  else
+    warn "Cron may already be registered, or registration failed — check with: ${BRCYAN}openclaw cron list${RESET}"
+  fi
+else
+  warn "Register cron manually after gateway starts:"
+  printf "    ${GRAY}openclaw cron add --name openclaw-versioning-commit --schedule '*/10 * * * *' --message 'bash %s/scripts/commit.sh' --session isolated${RESET}\n" "$SCRIPT_DIR"
+fi
+
 # ─── Initialize git repo ──────────────────────────────────────────────
 header "Git repository"
 
@@ -160,120 +176,25 @@ else
   printf "  ${DIM}No new files to commit${RESET}\n"
 fi
 
-# ─── GitHub (optional) ────────────────────────────────────────────────
-header "GitHub (optional)"
-
-REMOTE_URL=""
-
-printf "  Connect this repo to GitHub for remote backups? "
-read -rp "[Y/n] " _github_choice
-_github_choice="${_github_choice:-y}"
-
-if [[ "$_github_choice" =~ ^[Yy] ]]; then
-
-  if command -v gh &>/dev/null; then
-    GH_USER=$(gh api user --jq '.login' 2>/dev/null || true)
-
-    if [ -n "$GH_USER" ]; then
-      success "gh CLI authenticated as ${BRCYAN}@${GH_USER}${RESET}"
-      printf "  Use gh to connect a GitHub repo? "
-      read -rp "[Y/n] " _use_gh
-      _use_gh="${_use_gh:-y}"
-
-      if [[ "$_use_gh" =~ ^[Yy] ]]; then
-        printf "  Repo ${GRAY}(e.g. owner/repo or full URL)${RESET}: "
-        read -rp "" _repo_input
-        if [[ "$_repo_input" =~ ^https?:// ]] || [[ "$_repo_input" =~ ^git@ ]]; then
-          REMOTE_URL="$_repo_input"
-        else
-          REMOTE_URL="git@github.com:${_repo_input}.git"
-        fi
-      fi
-
-    else
-      warn "gh CLI found but not logged in"
-      printf "  Run \`gh auth login\` now? "
-      read -rp "[Y/n] " _gh_login
-      _gh_login="${_gh_login:-y}"
-
-      if [[ "$_gh_login" =~ ^[Yy] ]]; then
-        gh auth login
-        GH_USER=$(gh api user --jq '.login' 2>/dev/null || true)
-        if [ -n "$GH_USER" ]; then
-          success "Authenticated as ${BRCYAN}@${GH_USER}${RESET}"
-          printf "  Repo ${GRAY}(e.g. owner/repo or full URL)${RESET}: "
-          read -rp "" _repo_input
-          if [[ "$_repo_input" =~ ^https?:// ]] || [[ "$_repo_input" =~ ^git@ ]]; then
-            REMOTE_URL="$_repo_input"
-          else
-            REMOTE_URL="git@github.com:${_repo_input}.git"
-          fi
-        else
-          warn "Auth did not complete — falling back to manual URL entry"
-        fi
-      fi
-    fi
-  fi
-
-  # No gh, or user declined — prompt for URL manually
-  if [ -z "$REMOTE_URL" ]; then
-    printf "  Remote URL ${GRAY}(e.g. git@github.com:owner/repo.git)${RESET}: "
-    read -rp "" REMOTE_URL
-  fi
-
-  if [ -n "$REMOTE_URL" ]; then
-    cd "$WORKSPACE"
-    if git remote get-url origin &>/dev/null 2>&1; then
-      git remote set-url origin "$REMOTE_URL"
-      success "Updated remote origin → ${GRAY}${REMOTE_URL}${RESET}"
-    else
-      git remote add origin "$REMOTE_URL"
-      success "Added remote origin → ${GRAY}${REMOTE_URL}${RESET}"
-    fi
-
-    # Persist git remote into workspace config
-    WORKSPACE_CFG="$WORKSPACE/.openclaw-versioning.json"
-    if command -v jq &>/dev/null; then
-      TMP=$(mktemp)
-      jq --arg remote "$REMOTE_URL" '.git.remote = $remote | .git.branch = "main"' \
-        "$WORKSPACE_CFG" > "$TMP" && mv "$TMP" "$WORKSPACE_CFG"
-    else
-      python3 - "$WORKSPACE_CFG" "$REMOTE_URL" <<'PYEOF'
-import json, sys
-path, remote = sys.argv[1], sys.argv[2]
-with open(path) as f: cfg = json.load(f)
-cfg.setdefault("git", {})
-cfg["git"]["remote"] = remote
-cfg["git"]["branch"] = "main"
-with open(path, "w") as f: json.dump(cfg, f, indent=2)
-PYEOF
-    fi
-    success "Saved git config to ${BRCYAN}.openclaw-versioning.json${RESET}"
-
-    # Initial push
-    step "Pushing to origin..."
-    if git push -u origin main 2>/dev/null; then
-      success "Initial push complete"
-    else
-      warn "Push failed — run ${BRCYAN}git push -u origin main${RESET} after verifying auth"
-    fi
-  fi
-
-else
-  printf "  ${DIM}Skipped — add a remote later with \`git remote add origin <url>\`${RESET}\n"
-fi
-
 # ─── Done ─────────────────────────────────────────────────────────────
 gap
 printf "  ${GRAY}────────────────────────────────────────────────${RESET}\n"
 printf "  ${BRGREEN}✓  agent versioning is active${RESET}\n"
 printf "  ${GRAY}────────────────────────────────────────────────${RESET}\n"
 gap
-printf "  ${GRAY}Restart the openclaw gateway to load the hooks, then${RESET}\n"
-printf "  ${GRAY}say ${BRCYAN}/openclaw-versioning setup${GRAY} to finish cron registration.${RESET}\n"
+printf "  ${BRWHITE}Next steps:${RESET}\n"
 gap
-printf "  ${GRAY}Commands (say these to your agent):${RESET}\n"
-printf "  ${BRCYAN}/openclaw-versioning setup${RESET}\n"
+printf "  ${BRCYAN}1.${RESET} Restart the openclaw gateway\n"
+printf "  ${BRCYAN}2.${RESET} Say ${BRCYAN}/openclaw-versioning status${RESET} to verify\n"
+gap
+printf "  ${BRWHITE}To push commits to a remote:${RESET}\n"
+printf "  ${DIM}# set up auth first (gh auth login, SSH key, or HTTPS token)${RESET}\n"
+printf "  ${DIM}cd %s${RESET}\n" "$WORKSPACE"
+printf "  ${DIM}git remote add origin <url>${RESET}\n"
+printf "  ${DIM}# then add to .openclaw-versioning.json:${RESET}\n"
+printf "  ${DIM}# \"git\": { \"remote\": \"origin\", \"branch\": \"main\" }${RESET}\n"
+gap
+printf "  ${BRWHITE}Commands (say these to your agent):${RESET}\n"
 printf "  ${BRCYAN}/openclaw-versioning status${RESET}\n"
 printf "  ${BRCYAN}/openclaw-versioning log${RESET}\n"
 printf "  ${BRCYAN}/openclaw-versioning diff${RESET} ${DIM}<hash>${RESET}\n"

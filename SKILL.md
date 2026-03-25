@@ -13,41 +13,13 @@ Auto-commits workspace config changes after every agent turn, attributed to whoe
 
 ## Onboarding
 
-**Step 1** — Install hooks and initialize the git repo:
+Run setup.sh and restart the gateway — that's it:
 ```bash
 bash {baseDir}/setup.sh
 ```
-This copies the hooks, initializes the git repo if needed, and takes a first snapshot. Tell the user to restart their openclaw gateway after this completes.
-
-**Step 2** — After the gateway restarts, register the commit cron by calling the `cron.add` tool:
-```json
-{
-  "name": "openclaw-versioning-commit",
-  "cron": "*/10 * * * *",
-  "message": "bash {baseDir}/scripts/commit.sh",
-  "session": "isolated"
-}
-```
-Confirm with the user once the cron appears in `openclaw cron list`.
-
-To verify hooks are active:
-```bash
-openclaw hooks list | grep openclaw-versioning
-```
+setup.sh installs the hooks, initializes the git repo, registers the auto-commit cron, and takes a first snapshot. Tell the user to restart their openclaw gateway after this completes.
 
 ## Commands
-
-### `setup`
-Register the auto-commit cron if not already present. Call the `cron.add` tool:
-```json
-{
-  "name": "openclaw-versioning-commit",
-  "cron": "*/10 * * * *",
-  "message": "bash {baseDir}/scripts/commit.sh",
-  "session": "isolated"
-}
-```
-Skip if `openclaw cron list` already shows `openclaw-versioning-commit`.
 
 ### `status`
 Show current versioning state — latest snapshot, uncommitted changes, tracked files. Print the output verbatim.

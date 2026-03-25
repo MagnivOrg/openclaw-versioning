@@ -42,19 +42,70 @@ This will:
 - Seed `.openclaw-versioning.json` with default tracked files
 - Take an initial snapshot
 
-Then restart your openclaw gateway to load the hooks, and say `/openclaw-versioning setup` to register the commit cron.
+Then restart your openclaw gateway to load the hooks — versioning is active from that point on.
+
+---
+
+## Onboarding
+
+**1. Install**
+```bash
+bash setup.sh
+```
+Installs hooks, initializes the git repo, registers the auto-commit cron, and takes a first snapshot.
+
+**2. Restart your openclaw gateway**
+
+**3. Verify**
+```
+/openclaw-versioning status
+```
+
+**4. (Optional) Push commits to a remote**
+
+First, set up auth — the skill calls `git push` directly and expects credentials to already be in place:
+```bash
+gh auth login          # GitHub via gh CLI
+# or: set up an SSH key, or use an HTTPS token in the remote URL
+```
+
+Then register the remote in your workspace and add it to config:
+```bash
+cd $OPENCLAW_WORKSPACE
+git remote add origin <url>
+```
+
+In `.openclaw-versioning.json`:
+```json
+{
+  "git": {
+    "remote": "origin",
+    "branch": "main"
+  }
+}
+```
+
+`remote` is the git remote name (whatever you passed to `git remote add`). If this block is absent, commits stay local. No push, no error.
 
 ---
 
 ## Configuration
 
-After install, `.openclaw-versioning.json` will exist in your workspace. Edit it to change which files are tracked:
+After install, `.openclaw-versioning.json` will exist in your workspace. Edit it to customize.
 
+Change which files are tracked:
 ```json
 { "tracked": ["AGENTS.md", "SOUL.md", "skills/", "hooks/"] }
 ```
 
-The defaults are enumerated in `setup.sh` and written on first install.
+Push commits to a remote after each cron commit:
+```json
+{ "git": { "remote": "origin", "branch": "main" } }
+```
+
+The skill calls `git push` directly — set up your remote and auth (SSH key, `gh auth login`, or HTTPS token) before enabling this. No auth handling is done by the skill itself.
+
+The tracked file defaults are inlined in `setup.sh` and written on first install.
 
 ---
 
