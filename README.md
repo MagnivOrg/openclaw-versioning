@@ -1,0 +1,106 @@
+# openclaw-versioning
+
+A versioning skill for [OpenClaw](https://openclaw.dev) agents. Automatically commits workspace config changes after every agent turn, attributed to whoever sent the message. Gives you a full audit trail of who changed what and when, with rollback and diff tools accessible directly from chat.
+
+---
+
+## How it works
+
+Two hooks handle everything automatically:
+
+1. **`openclaw-versioning-capture`** fires on `message:received` — writes sender identity (name, ID, channel) to `.version-context` in the workspace.
+
+2. **`openclaw-versioning-commit`** fires on `message:sent` — diffs tracked files against HEAD, appends an attribution entry to `pending_commits.jsonl`, and stages any changes.
+
+A cron job fires every 10 minutes and runs `commit.sh`, which reads the pending log, builds a commit message with full attribution and a per-turn changelog, commits, and clears the log.
+
+```
+message:received  →  capture hook  →  .version-context written
+      ↓
+  agent turn (files may change)
+      ↓
+message:sent  →  commit hook  →  pending_commits.jsonl appended, files staged
+      ↓
+  cron (every 10 min)  →  commit.sh  →  git commit with full attribution + changelog
+```
+
+The skill commands (`/openclaw-versioning log`, `diff`, `rollback`, etc.) are available in any connected channel or CLI session.
+
+---
+
+## Install
+
+**Requirements:** `git`, `jq`, Node.js (for hook handlers)
+
+```bash
+bash setup.sh
+```
+
+This will:
+- Copy hooks into `$OPENCLAW_WORKSPACE/hooks/`
+- Initialize a git repo in the workspace (if one doesn't exist)
+- Seed `.openclaw-versioning.json` with default tracked files
+- Take an initial snapshot
+
+Then restart your openclaw gateway to load the hooks, and say `/openclaw-versioning setup` to register the commit cron.
+
+---
+
+## Configuration
+
+After install, `.openclaw-versioning.json` will exist in your workspace. Edit it to change which files are tracked:
+
+```json
+{ "tracked": ["AGENTS.md", "SOUL.md", "skills/", "hooks/"] }
+```
+
+The defaults are defined in [`defaults.json`](./defaults.json) at the repo root.
+
+---
+
+## Scripts
+
+Scripts live in `scripts/` and are called by the agent via `bash {baseDir}/scripts/<name>.sh`.
+
+| Script | Purpose |
+|---|---|
+| `commit.sh` | Flush `pending_commits.jsonl` into a git commit with full attribution. Called by the cron every 10 min. Pass `--manual` to trigger outside the cron. |
+| `snapshot.sh` | Create a clean named checkpoint. Takes an optional message. Does not touch the pending log — use this for milestone markers ("v2 launch config", "before experiment"). |
+| `status.sh` | Show latest commit, uncommitted changes with line counts, and tracked files. |
+| `log.sh` | Show commit history. Accepts a count and `--detail` flag for full commit bodies. |
+| `diff.sh` | Show diffs. No args = uncommitted changes. One arg = what changed in that commit. Two args = between two commits. |
+| `rollback.sh` | Restore all tracked files to a prior commit. Creates a new commit recording the rollback. |
+| `restore.sh` | Restore a single file to its state before a specific commit. Stages the change and appends to pending log for attribution on next commit. |
+
+---
+
+## Hooks
+
+Hooks live in `hooks/` and are installed into the workspace during setup.
+
+| Hook | Event | What it does |
+|---|---|---|
+| `openclaw-versioning-capture` | `message:received` | Writes sender identity to `.version-context` |
+| `openclaw-versioning-commit` | `message:sent` | Stages tracked files, appends attribution to `pending_commits.jsonl` |
+
+Each hook directory contains a `HOOK.md` with frontmatter required for OpenClaw hook registration, and a `handler.ts` with the implementation.
+
+---
+
+## Workspace files
+
+| File | Description |
+|---|---|
+| `.openclaw-versioning.json` | Tracked files config. Seeded from `defaults.json` on install. Edit to customize. |
+| `.version-context` | Temporary file written by the capture hook, read by the commit hook, then deleted. Never committed. |
+| `pending_commits.jsonl` | Append-only log of attribution entries since the last commit. Cleared after each `commit.sh` run. Never committed. |
+
+---
+
+## Contributing
+
+The tracked files list defaults live in [`defaults.json`](./defaults.json). Adding a new default means editing that one file — `setup.sh`, the scripts, and the hook handlers all read from the workspace `.openclaw-versioning.json` which is seeded from it at install time.
+
+Hook handlers are TypeScript (`handler.ts`). They run in the openclaw hook runtime — no build step required, the runtime handles transpilation.
+
+Pull requests welcome.

@@ -15,20 +15,10 @@ MANUAL=false
 PENDING="$WORKSPACE/pending_commits.jsonl"
 
 # ─── Resolve tracked files ────────────────────────────────────────────
-CFG="$WORKSPACE/.openclaw-versioning.json"
 TRACKED=()
-if [ -f "$CFG" ] && command -v jq &>/dev/null; then
-  while IFS= read -r item; do
-    TRACKED+=("$item")
-  done < <(jq -r '.tracked[]?' "$CFG" 2>/dev/null)
-fi
-if [ ${#TRACKED[@]} -eq 0 ]; then
-  TRACKED=(
-    "AGENTS.md" "SOUL.md" "IDENTITY.md" "USER.md" "TOOLS.md"
-    "HEARTBEAT.md" "BOOT.md" "BOOTSTRAP.md" "MEMORY.md"
-    ".gitignore" "skills/" "hooks/"
-  )
-fi
+while IFS= read -r item; do
+  TRACKED+=("$item")
+done < <(jq -r '.tracked[]?' "$WORKSPACE/.openclaw-versioning.json" 2>/dev/null)
 
 # ─── Stage any unstaged changes to tracked files ─────────────────────
 for f in "${TRACKED[@]}"; do
@@ -121,3 +111,27 @@ SHORT_HASH=$(git rev-parse --short HEAD)
 [ -f "$PENDING" ] && > "$PENDING"
 
 echo "Committed $SHORT_HASH — $PREFIX by: $USERS ($STAGED_FILES)"
+
+# ─── Push to remote if configured ────────────────────────────────────
+CFG="$WORKSPACE/.openclaw-versioning.json"
+GIT_REMOTE=""
+GIT_BRANCH="main"
+if [ -f "$CFG" ] && command -v jq &>/dev/null; then
+  GIT_REMOTE=$(jq -r '.git.remote // ""' "$CFG" 2>/dev/null || true)
+  GIT_BRANCH=$(jq -r '.git.branch // "main"' "$CFG" 2>/dev/null || true)
+fi
+
+if [ -n "$GIT_REMOTE" ]; then
+  PUSH_ERR=$(git push origin "$GIT_BRANCH" 2>&1)
+  if [ $? -eq 0 ]; then
+    echo "Pushed to $GIT_REMOTE ($GIT_BRANCH)"
+  else
+    if echo "$PUSH_ERR" | grep -qiE "permission denied|authentication failed|repository not found|invalid username|could not read username"; then
+      echo "Warning: push failed — auth error. Run \`gh auth login\` or check your SSH key."
+    elif echo "$PUSH_ERR" | grep -qiE "could not resolve|connection timed out|network|unreachable|failed to connect"; then
+      echo "Warning: push failed — connection error. Will retry on next commit."
+    else
+      echo "Warning: push failed — $PUSH_ERR"
+    fi
+  fi
+fi

@@ -11,21 +11,10 @@ fi
 
 MESSAGE="${1:-}"
 
-TRACKED=(
-  "AGENTS.md" "SOUL.md" "IDENTITY.md" "USER.md" "TOOLS.md"
-  "HEARTBEAT.md" "BOOT.md" "BOOTSTRAP.md" "MEMORY.md"
-  ".gitignore" "skills/" "hooks/"
-)
-
-# Merge in any custom tracked list from .openclaw-versioning.json
-if [ -f "$WORKSPACE/.openclaw-versioning.json" ] && command -v jq &>/dev/null; then
-  CUSTOM=$(jq -r '.tracked[]?' "$WORKSPACE/.openclaw-versioning.json" 2>/dev/null || true)
-  if [ -n "$CUSTOM" ]; then
-    while IFS= read -r item; do
-      TRACKED+=("$item")
-    done <<< "$CUSTOM"
-  fi
-fi
+TRACKED=()
+while IFS= read -r item; do
+  TRACKED+=("$item")
+done < <(jq -r '.tracked[]?' "$WORKSPACE/.openclaw-versioning.json" 2>/dev/null)
 
 for f in "${TRACKED[@]}"; do
   git add "$f" 2>/dev/null || true

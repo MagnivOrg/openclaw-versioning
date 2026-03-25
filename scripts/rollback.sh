@@ -10,8 +10,10 @@ if [ ! -d .git ]; then
 fi
 
 TARGET="${1:-}"
+REASON="${2:-}"
+
 if [ -z "$TARGET" ]; then
-  echo "Usage: rollback.sh <commit-hash>"
+  echo "Usage: rollback.sh <commit-hash> [reason]"
   echo ""
   echo "Recent snapshots:"
   git log --format="  %h  %ai  %s" -10
@@ -27,11 +29,23 @@ CURRENT_SHORT=$(git rev-parse --short HEAD)
 TARGET_SHORT=$(git rev-parse --short "$TARGET")
 TARGET_MSG=$(git log --format="%s" -1 "$TARGET")
 
-git checkout "$TARGET" -- . 2>/dev/null
+# Restore only tracked files — consistent with commit.sh and snapshot.sh
+while IFS= read -r f; do
+  git checkout "$TARGET" -- "$f" 2>/dev/null || true
+done < <(jq -r '.tracked[]?' "$WORKSPACE/.openclaw-versioning.json" 2>/dev/null)
 
-git add -A
+# Stage the same tracked files
+while IFS= read -r f; do
+  git add "$f" 2>/dev/null || true
+done < <(jq -r '.tracked[]?' "$WORKSPACE/.openclaw-versioning.json" 2>/dev/null)
+
 if ! git diff --cached --quiet; then
-  git commit -m "Rollback to $TARGET_SHORT ($TARGET_MSG)"
+  if [ -n "$REASON" ]; then
+    COMMIT_MSG="Rollback to $TARGET_SHORT ($TARGET_MSG): $REASON"
+  else
+    COMMIT_MSG="Rollback to $TARGET_SHORT ($TARGET_MSG)"
+  fi
+  git commit -m "$COMMIT_MSG"
   NEW_SHORT=$(git rev-parse --short HEAD)
   echo "Rolled back from $CURRENT_SHORT to $TARGET_SHORT. New snapshot: $NEW_SHORT"
 else

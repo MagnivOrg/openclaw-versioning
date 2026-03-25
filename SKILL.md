@@ -78,11 +78,11 @@ Show changes. No args = uncommitted. One arg = what changed in that commit. Two 
 bash {baseDir}/scripts/diff.sh [commit] [commit2]
 ```
 
-### `rollback <commit>`
-Restore ALL tracked files to a previous version. Creates a new commit recording the rollback.
+### `rollback <commit> [reason]`
+Restore ALL tracked files to a previous version. Creates a new commit recording the rollback. The optional reason is appended to the commit message and should capture why the rollback was done.
 **Always show the user what will change before rolling back.**
 ```bash
-bash {baseDir}/scripts/rollback.sh <commit>
+bash {baseDir}/scripts/rollback.sh <commit> ["reason"]
 ```
 
 ### `restore <file> <commit>`
