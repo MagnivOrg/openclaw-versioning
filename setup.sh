@@ -105,7 +105,7 @@ header "Registering cron"
 if command -v openclaw &>/dev/null; then
   CRON_NAME="openclaw-versioning-commit"
   CRON_CMD="bash $SCRIPT_DIR/scripts/commit.sh"
-  if openclaw cron list 2>/dev/null | grep -q "$CRON_NAME"; then
+  if openclaw cron list --json 2>/dev/null | jq -e --arg name "$CRON_NAME" '.jobs[] | select(.name == $name)' >/dev/null 2>&1; then
     success "Cron ${BRCYAN}${CRON_NAME}${RESET} already registered"
   elif openclaw cron add \
     --name "$CRON_NAME" \
