@@ -32,60 +32,39 @@ The skill commands (`/openclaw-versioning log`, `diff`, `rollback`, etc.) are av
 
 **Requirements:** `git`, `jq`, Node.js (for hook handlers)
 
+**1.** Run setup:
 ```bash
 bash setup.sh
 ```
+Copies hooks into the workspace, initializes the git repo, writes `.openclaw-versioning.json`, and takes a first snapshot. setup.sh will prompt you to optionally connect a GitHub remote.
 
-This will:
-- Copy hooks into `$OPENCLAW_WORKSPACE/hooks/`
-- Initialize a git repo in the workspace (if one doesn't exist)
-- Seed `.openclaw-versioning.json` with default tracked files
-- Take an initial snapshot
+**2.** Restart your openclaw gateway to load the hooks.
 
-Then restart your openclaw gateway to load the hooks — versioning is active from that point on.
+**3.** Say `/openclaw-versioning setup` to register the auto-commit cron.
 
----
-
-## Onboarding
-
-**1. Install**
-```bash
-bash setup.sh
-```
-Installs hooks, initializes the git repo, registers the auto-commit cron, and takes a first snapshot.
-
-**2. Restart your openclaw gateway**
-
-**3. Verify**
+**4.** Verify:
 ```
 /openclaw-versioning status
 ```
 
-**4. (Optional) Push commits to a remote**
+**5. (Optional) Push commits to a remote**
 
-First, set up auth — the skill calls `git push` directly and expects credentials to already be in place:
 ```bash
-gh auth login          # GitHub via gh CLI
+gh auth login          # if using GitHub via gh CLI
 # or: set up an SSH key, or use an HTTPS token in the remote URL
 ```
 
-Then register the remote in your workspace and add it to config:
 ```bash
 cd $OPENCLAW_WORKSPACE
 git remote add origin <url>
 ```
 
-In `.openclaw-versioning.json`:
+Then add to `.openclaw-versioning.json`:
 ```json
-{
-  "git": {
-    "remote": "origin",
-    "branch": "main"
-  }
-}
+{ "git": { "remote": "origin", "branch": "main" } }
 ```
 
-`remote` is the git remote name (whatever you passed to `git remote add`). If this block is absent, commits stay local. No push, no error.
+`remote` is the git remote name. If absent, commits stay local — no push, no error.
 
 ---
 
@@ -93,7 +72,12 @@ In `.openclaw-versioning.json`:
 
 After install, `.openclaw-versioning.json` will exist in your workspace. Edit it to customize.
 
-Change which files are tracked:
+Default tracked files:
+```json
+{ "tracked": ["AGENTS.md", "SOUL.md", "IDENTITY.md", "USER.md", "TOOLS.md", "HEARTBEAT.md", "BOOT.md", "BOOTSTRAP.md", "MEMORY.md", ".gitignore", ".openclaw-versioning.json", "skills/", "hooks/"] }
+```
+
+Override by editing `.openclaw-versioning.json` in your workspace:
 ```json
 { "tracked": ["AGENTS.md", "SOUL.md", "skills/", "hooks/"] }
 ```

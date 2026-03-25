@@ -7,17 +7,28 @@ metadata: {"openclaw":{"requires":{"bins":["git"]}}}
 
 # OpenClaw Versioning
 
-Auto-commits workspace config changes after every agent turn, attributed to whoever sent the message.
+Between turns, tracked workspace files are diffed and staged with sender attribution. A cron job batches those staged changes into a git commit every 10 minutes.
 
 > **Output rule:** Every command runs a bash script. Always execute the script and send its complete output to the user. Never summarize, skip, or say "same as before" — run it fresh every time.
 
 ## Onboarding
 
-Run setup.sh and restart the gateway — that's it:
+**Step 1** — Run setup and restart the gateway:
 ```bash
 bash {baseDir}/setup.sh
 ```
-setup.sh installs the hooks, initializes the git repo, registers the auto-commit cron, and takes a first snapshot. Tell the user to restart their openclaw gateway after this completes.
+Installs the hooks, initializes the git repo, and takes a first snapshot. Tell the user to restart their openclaw gateway after this completes.
+
+**Step 2** — After the gateway restarts, register the commit cron by calling the `cron.add` tool:
+```json
+{
+  "name": "openclaw-versioning-commit",
+  "cron": "*/10 * * * *",
+  "message": "bash {baseDir}/scripts/commit.sh",
+  "session": "isolated"
+}
+```
+Confirm with the user once the cron appears in `openclaw cron list`.
 
 ## Commands
 
@@ -87,7 +98,7 @@ bash {baseDir}/scripts/commit.sh --manual
 
 The two installed hooks handle everything automatically:
 - `openclaw-versioning-capture` fires on `message:received` — saves sender identity to `.version-context`
-- `openclaw-versioning-commit` fires on `message:sent` — stages tracked files, commits with sender attribution if anything changed
+- `openclaw-versioning-commit` fires on `message:sent` — diffs tracked files against HEAD, appends attribution to `pending_commits.jsonl`, and stages any changes
 
 Tracked by default: `AGENTS.md`, `SOUL.md`, `IDENTITY.md`, `USER.md`, `TOOLS.md`, `HEARTBEAT.md`, `BOOT.md`, `BOOTSTRAP.md`, `MEMORY.md`, `.gitignore`, `.openclaw-versioning.json`, `skills/`, `hooks/`
 
