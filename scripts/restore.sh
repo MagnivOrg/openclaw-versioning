@@ -11,9 +11,10 @@ fi
 
 FILE="${1:-}"
 COMMIT="${2:-}"
+REASON="${3:-}"
 
 if [ -z "$FILE" ] || [ -z "$COMMIT" ]; then
-  echo "**Usage:** \`/openclaw-versioning restore <file> <commit>\`"
+  echo "**Usage:** \`/openclaw-versioning restore <file> <commit> [reason]\`"
   echo ""
   echo "Restores a single file to its state before the given commit."
   echo "To find the right commit, run \`/openclaw-versioning log\`."
@@ -46,7 +47,7 @@ git checkout "${COMMIT}^" -- "$FILE"
 git add "$FILE"
 
 # Log to pending so the next commit includes restore attribution
-ENTRY=$(printf '{"ts":%s,"user":"%s","userId":"%s","channel":"%s","files":["restore: %s"]}' "$(date +%s000)" "$USER" "$USER" "$CHANNEL" "$FILE")
+ENTRY=$(printf '{"ts":%s,"user":"%s","userId":"%s","channel":"%s","action":"restore","file":"%s","from":"%s","reason":"%s","files":[]}' "$(date +%s000)" "$USER" "$USER" "$CHANNEL" "$FILE" "$TARGET_SHORT" "$REASON")
 printf '%s\n' "$ENTRY" >> "$WORKSPACE/pending_commits.jsonl"
 
 echo "**Staged restore** — \`$FILE\` to before \`$TARGET_SHORT\`"

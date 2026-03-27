@@ -54,10 +54,8 @@ while IFS= read -r f; do
 done < <(jq -r '.tracked[]?' "$WORKSPACE/.openclaw-versioning.json" 2>/dev/null)
 
 if ! git diff --cached --quiet; then
-  LABEL="rollback to $TARGET_SHORT"
-  [ -n "$REASON" ] && LABEL="$LABEL: $REASON"
-  ENTRY=$(printf '{"ts":%s,"user":"%s","userId":"%s","channel":"%s","files":["%s"]}' \
-    "$(date +%s000)" "$ACTOR" "$ACTOR" "$CHANNEL" "$LABEL")
+  ENTRY=$(printf '{"ts":%s,"user":"%s","userId":"%s","channel":"%s","action":"rollback","target":"%s","reason":"%s","files":[]}' \
+    "$(date +%s000)" "$ACTOR" "$ACTOR" "$CHANNEL" "$TARGET_SHORT" "$REASON")
   printf '%s\n' "$ENTRY" >> "$WORKSPACE/pending_commits.jsonl"
 
   echo "**Staged rollback** \`$CURRENT_SHORT\` → \`$TARGET_SHORT\`"

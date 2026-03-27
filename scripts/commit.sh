@@ -10,7 +10,13 @@ if [ ! -d .git ]; then
 fi
 
 MANUAL=false
-[ "${1:-}" = "--manual" ] && MANUAL=true
+MESSAGE=""
+for arg in "$@"; do
+  case "$arg" in
+    --manual) MANUAL=true ;;
+    *) [ -z "$MESSAGE" ] && MESSAGE="$arg" ;;
+  esac
+done
 
 PENDING="$WORKSPACE/pending_commits.jsonl"
 
@@ -50,9 +56,14 @@ if [ -f "$PENDING" ] && [ -s "$PENDING" ]; then
       ts=$(echo "$line" | jq -r '.ts // 0' 2>/dev/null || echo "0")
       channel=$(echo "$line" | jq -r '.channel // "unknown"' 2>/dev/null || echo "unknown")
       files=$(echo "$line" | jq -r '(.files // []) | join(", ")' 2>/dev/null || echo "")
+      action=$(echo "$line" | jq -r '.action // ""' 2>/dev/null || echo "")
+      action_target=$(echo "$line" | jq -r '.target // ""' 2>/dev/null || echo "")
+      action_file=$(echo "$line" | jq -r '.file // ""' 2>/dev/null || echo "")
+      action_from=$(echo "$line" | jq -r '.from // ""' 2>/dev/null || echo "")
+      action_reason=$(echo "$line" | jq -r '.reason // ""' 2>/dev/null || echo "")
     else
       user=$(echo "$line" | grep -o '"user":"[^"]*"' | cut -d'"' -f4 || echo "unknown")
-      ts="0"; channel="unknown"; files=""
+      ts="0"; channel="unknown"; files=""; action=""; action_target=""; action_file=""; action_from=""; action_reason=""
     fi
 
     # Format timestamp as readable date
@@ -73,7 +84,17 @@ if [ -f "$PENDING" ] && [ -s "$PENDING" ]; then
     fi
 
     # Build per-turn changelog line
-    CHANGELOG="${CHANGELOG}  [$readable] $user ($channel): $files\n"
+    if [ "$action" = "rollback" ]; then
+      CHANGELOG="${CHANGELOG}  [$readable] $user\n"
+      CHANGELOG="${CHANGELOG}  action: rollback → $action_target\n"
+      [ -n "$action_reason" ] && CHANGELOG="${CHANGELOG}  reason: $action_reason\n"
+    elif [ "$action" = "restore" ]; then
+      CHANGELOG="${CHANGELOG}  [$readable] $user\n"
+      CHANGELOG="${CHANGELOG}  action: restore $action_file from $action_from\n"
+      [ -n "$action_reason" ] && CHANGELOG="${CHANGELOG}  reason: $action_reason\n"
+    else
+      CHANGELOG="${CHANGELOG}  [$readable] $user ($channel): $files\n"
+    fi
   done < "$PENDING"
 fi
 
@@ -100,8 +121,14 @@ fi
 if [ -z "$USERS" ]; then USERS="unknown"; fi
 
 # ─── Assemble full message ────────────────────────────────────────────
+if [ -n "$MESSAGE" ]; then
+  SUBJECT="$MESSAGE"
+else
+  SUBJECT="${PREFIX}: $STAGED_FILES"
+fi
+
 if [ -n "$CHANGELOG" ]; then
-  MSG="${PREFIX}: $STAGED_FILES
+  MSG="$SUBJECT
 
 Triggered by: ${USERS}
 Turns: ${COUNT}
@@ -109,7 +136,7 @@ Turns: ${COUNT}
 --- Change log ---
 $(printf "%b" "$CHANGELOG")"
 else
-  MSG="${PREFIX}: $STAGED_FILES
+  MSG="$SUBJECT
 
 Triggered by: ${USERS}
 Turns: ${COUNT}"
@@ -120,7 +147,7 @@ SHORT_HASH=$(git rev-parse --short HEAD)
 
 [ -f "$PENDING" ] && > "$PENDING"
 
-echo "**Committed** \`$SHORT_HASH\` — $PREFIX by _${USERS}_"
+echo "**Committed** \`$SHORT_HASH\` — $SUBJECT by _${USERS}_"
 echo "> $STAGED_FILES"
 
 # ─── Push if remote is configured ────────────────────────────────────

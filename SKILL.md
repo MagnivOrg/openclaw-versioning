@@ -66,8 +66,8 @@ Restore ALL tracked files to a previous version. Stages the changes and defers t
 bash {baseDir}/scripts/rollback.sh <commit> ["reason"]
 ```
 
-### `restore <file> <commit>`
-Restore a **single file** to its state before a specific commit — without touching anything else. Use this when the user wants to undo a specific file's change.
+### `restore <file> <commit> [reason]`
+Restore a **single file** to its state before a specific commit — without touching anything else. Use this when the user wants to undo a specific file's change. The optional reason is recorded in the pending log for attribution.
 
 To find the right commit: run `log`, read the `--- Change log ---` section in each commit body to identify which turn changed the file, then pass that commit hash.
 ```bash
@@ -80,16 +80,12 @@ bash {baseDir}/scripts/restore.sh <file> <commit>
 3. Read the change log in that commit body to confirm the right entry
 4. Run `restore.sh AGENTS.md <hash>`
 
-### `snapshot <message>`
-Manually create a named checkpoint.
-```bash
-bash {baseDir}/scripts/snapshot.sh "description"
-```
-
-### `commit`
-Flush pending changes now as a manual commit. Commits are labeled "Manual commit" to distinguish from auto-commits by the cron.
+### `commit [message]`
+Flush pending staged changes as a manual commit. If a message is provided it becomes the commit subject — useful for named checkpoints. Without a message the subject lists the staged files.
 ```bash
 bash {baseDir}/scripts/commit.sh --manual
+# or with a message:
+bash {baseDir}/scripts/commit.sh --manual "before big prompt rewrite"
 ```
 
 ## Auto-Versioning
@@ -105,8 +101,3 @@ To override, create `<workspace>/.openclaw-versioning.json`:
 { "tracked": ["AGENTS.md", "SOUL.md", "skills/", "hooks/"] }
 ```
 
-## When to Manually Snapshot
-
-- Before risky changes (clean rollback point)
-- After a significant milestone ("v2 of triage prompt")
-- When the user explicitly asks to save or checkpoint

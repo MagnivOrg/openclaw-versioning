@@ -20,19 +20,29 @@ Use it to answer questions like:
 Requirements: `git`, `jq`, Node.js
 
 1. Add this repo to your workspace `skills/` directory.
-2. In chat, run:
+2. In your terminal, restart the gateway so the skill is picked up:
+
+```bash
+openclaw gateway restart
+```
+
+3. In chat, run:
 
 ```text
 /openclaw-versioning setup
 ```
 
-3. Verify:
+4. Restart the gateway again to activate the installed hooks:
+
+```bash
+openclaw gateway restart
+```
+
+5. Verify:
 
 ```text
 /openclaw-versioning status
 ```
-
-If `status` works, you're done.
 
 ## Everyday commands
 
@@ -40,14 +50,14 @@ Use these from any connected channel or CLI session.
 
 | Command                                        | What it is for                                                            |
 | ---------------------------------------------- | ------------------------------------------------------------------------- |
-| `/openclaw-versioning status`                  | Check latest commit, pending changes, and tracked files                   |
+| `/openclaw-versioning status`                  | Check latest commit and pending changes                                   |
 | `/openclaw-versioning log [count] [--detail]`  | Browse recent commit history                                              |
-| `/openclaw-versioning diff`                    | See uncommitted changes                                                   |
-| `/openclaw-versioning diff <commit>`           | See what changed in one commit                                            |
-| `/openclaw-versioning diff <from> <to>`        | Compare two commits                                                       |
-| `/openclaw-versioning rollback <commit>`       | Restore all tracked files to a previous state (records a rollback commit) |
-| `/openclaw-versioning restore <file> <commit>` | Restore one file from before a specific commit                            |
-| `/openclaw-versioning snapshot [message]`      | Create a manual checkpoint commit                                         |
+| `/openclaw-versioning diff`                    | Show tracked file changes not yet committed                               |
+| `/openclaw-versioning diff <commit>`           | Show exactly what was added/removed in a specific commit                  |
+| `/openclaw-versioning diff <from> <to>`        | Show what changed between two commits                                     |
+| `/openclaw-versioning rollback <commit> [reason]` | Restore all tracked files to a previous state, staged for next commit  |
+| `/openclaw-versioning restore <file> <commit> [reason]` | Restore one file from before a specific commit, staged for next commit |
+| `/openclaw-versioning commit [message]`           | Flush pending staged changes as a manual commit, with optional label   |
 
 ## Configuration
 
