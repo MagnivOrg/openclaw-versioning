@@ -11,6 +11,8 @@ Between turns, tracked workspace files are diffed and staged with sender attribu
 
 > **Output rule:** Every command runs a bash script. Always execute the script and send its complete output to the user. Never summarize, skip, or say "same as before" — run it fresh every time.
 
+> **Typo safeguard:** If the command or any argument looks like a typo or is ambiguous (e.g. unrecognized command name, commit hash that doesn't look right, filename that doesn't match anything), confirm with the user before running anything. Do not guess and proceed.
+
 ## Output Contract
 
 For every command in this skill:
@@ -18,7 +20,7 @@ For every command in this skill:
 1. Run exactly the documented script command for that action.
 2. Return the script's stdout verbatim — do not reformat, summarize, or paraphrase it. The scripts output markdown directly.
 3. Do not wrap the output in a code block. Render it as markdown so it displays properly.
-4. You may append a brief addendum only if it adds necessary context (e.g., a next-step suggestion or error clarification). Keep it to one line.
+4. You may append a brief addendum only if it adds necessary context (e.g., a next-step suggestion or error clarification). Keep it to one line. Always put a space between your own text and the script output.
 5. If output is too long for one message, send it in ordered chunks labeled `Part 1/N`, `Part 2/N`, etc., without omitting lines.
 
 ## Commands

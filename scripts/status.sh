@@ -48,7 +48,6 @@ else
   [ -n "$META" ] && echo "_${META}_"
 fi
 
-echo ""
 
 CHANGES=$(git diff HEAD --name-only 2>/dev/null | wc -l | tr -d ' ')
 if [ "$CHANGES" -gt 0 ]; then
