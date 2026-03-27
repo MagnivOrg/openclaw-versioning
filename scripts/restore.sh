@@ -5,7 +5,7 @@ WORKSPACE="${OPENCLAW_WORKSPACE:-$HOME/.openclaw/workspace}"
 cd "$WORKSPACE"
 
 if [ ! -d .git ]; then
-  echo "Error: Versioning not initialized. Run: bash {baseDir}/setup.sh"
+  echo "**Error:** Versioning not initialized. Run \`/openclaw-versioning setup\`."
   exit 1
 fi
 
@@ -13,22 +13,20 @@ FILE="${1:-}"
 COMMIT="${2:-}"
 
 if [ -z "$FILE" ] || [ -z "$COMMIT" ]; then
-  echo "Usage: restore.sh <file> <commit>"
+  echo "**Usage:** \`/openclaw-versioning restore <file> <commit>\`"
   echo ""
   echo "Restores a single file to its state before the given commit."
-  echo "Example: restore.sh AGENTS.md a1b2c3d"
-  echo ""
-  echo "To find the right commit, run: /openclaw-versioning log"
+  echo "To find the right commit, run \`/openclaw-versioning log\`."
   exit 1
 fi
 
 if ! git cat-file -e "$COMMIT" 2>/dev/null; then
-  echo "Error: Commit $COMMIT not found."
+  echo "**Error:** Commit \`$COMMIT\` not found."
   exit 1
 fi
 
 if ! git show "$COMMIT" -- "$FILE" | grep -q "." 2>/dev/null; then
-  echo "Error: $FILE was not changed in commit $COMMIT."
+  echo "**Error:** \`$FILE\` was not changed in commit \`$COMMIT\`."
   exit 1
 fi
 
@@ -51,4 +49,5 @@ git add "$FILE"
 ENTRY=$(printf '{"ts":%s,"user":"%s","userId":"%s","channel":"%s","files":["restore: %s"]}' "$(date +%s000)" "$USER" "$USER" "$CHANNEL" "$FILE")
 printf '%s\n' "$ENTRY" >> "$WORKSPACE/pending_commits.jsonl"
 
-echo "Staged restore of $FILE to before $TARGET_SHORT (triggered by: $USER) — commit when ready with /openclaw-versioning commit"
+echo "**Staged restore** — \`$FILE\` to before \`$TARGET_SHORT\`"
+echo "_Triggered by: $USER — commit when ready with \`/openclaw-versioning commit\`_"

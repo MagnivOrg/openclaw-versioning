@@ -28,7 +28,7 @@ done
 # ─── Nothing staged at all → nothing to do ───────────────────────────
 if git diff --cached --quiet 2>/dev/null; then
   [ -f "$PENDING" ] && > "$PENDING"
-  echo "No changes to commit."
+  echo "_No changes to commit._"
   exit 0
 fi
 
@@ -78,8 +78,18 @@ if [ -f "$PENDING" ] && [ -s "$PENDING" ]; then
 fi
 
 # ─── Determine prefix ─────────────────────────────────────────────────
+CTX="$WORKSPACE/.version-context"
+
 if [ "$MANUAL" = true ]; then
   PREFIX="Manual commit"
+  # For manual commits, prefer identity from version-context (set by capture hook)
+  if [ -z "$USERS" ] || [ "$USERS" = "unknown" ]; then
+    if [ -f "$CTX" ] && command -v jq &>/dev/null; then
+      CTX_USER=$(jq -r '.user // ""' "$CTX" 2>/dev/null || true)
+      [ -n "$CTX_USER" ] && [ "$CTX_USER" != "unknown" ] && USERS="$CTX_USER"
+    fi
+  fi
+  if [ -z "$USERS" ] || [ "$USERS" = "unknown" ]; then USERS="skill invocation"; fi
 elif [ "$HAS_PENDING" = false ] || [ "$COUNT" -eq 0 ]; then
   PREFIX="Auto-commit (cli)"
   USERS="cli"
@@ -110,7 +120,8 @@ SHORT_HASH=$(git rev-parse --short HEAD)
 
 [ -f "$PENDING" ] && > "$PENDING"
 
-echo "Committed $SHORT_HASH — $PREFIX by: $USERS ($STAGED_FILES)"
+echo "**Committed** \`$SHORT_HASH\` — $PREFIX by _${USERS}_"
+echo "> $STAGED_FILES"
 
 # ─── Push if remote is configured ────────────────────────────────────
 GIT_REMOTE=$(jq -r '.git.remote // ""' "$WORKSPACE/.openclaw-versioning.json" 2>/dev/null || true)
@@ -118,8 +129,8 @@ GIT_BRANCH=$(jq -r '.git.branch // "main"' "$WORKSPACE/.openclaw-versioning.json
 
 if [ -n "$GIT_REMOTE" ]; then
   if git push "$GIT_REMOTE" "$GIT_BRANCH" 2>/dev/null; then
-    echo "Pushed to $GIT_REMOTE ($GIT_BRANCH)"
+    echo "_Pushed to \`$GIT_REMOTE\` ($GIT_BRANCH)_"
   else
-    echo "Warning: push to $GIT_REMOTE failed — check your git auth and remote config"
+    echo "> ⚠️ Push to \`$GIT_REMOTE\` failed — check your git auth and remote config."
   fi
 fi

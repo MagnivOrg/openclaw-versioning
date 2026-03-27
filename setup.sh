@@ -5,28 +5,12 @@ SCRIPT_DIR="$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)"
 WORKSPACE="${OPENCLAW_WORKSPACE:-$HOME/.openclaw/workspace}"
 HOOKS_DEST="$WORKSPACE/hooks"
 
-# ─── Colors ──────────────────────────────────────────────────────────
-RESET='\033[0m'; GRAY='\033[0;90m'; BRCYAN='\033[1;36m'; BRGREEN='\033[1;32m'
-BRWHITE='\033[1;97m'; YELLOW='\033[0;33m'; RED='\033[0;31m'; DIM='\033[2m'
-BRMAGENTA='\033[1;35m'
+success() { echo "- ✓ $*"; }
+warn()    { echo "- ! $*"; }
+fail()    { echo "- ✗ $*"; exit 1; }
+header()  { echo ""; echo "**$***"; echo ""; }
 
-CHECK="${BRGREEN}✓${RESET}"; WARN="${YELLOW}!${RESET}"; CROSS="${RED}✗${RESET}"
-ARROW="${BRCYAN}›${RESET}"
-
-step()    { printf "  ${ARROW} %b\n" "$*"; }
-success() { printf "  ${CHECK} %b\n" "$*"; }
-warn()    { printf "  ${WARN} %b\n" "$*"; }
-fail()    { printf "  ${CROSS} %b\n" "$*"; exit 1; }
-gap()     { echo ""; }
-header()  { printf "\n  ${BRMAGENTA}◆${RESET}  ${BRWHITE}%s${RESET}\n\n" "$*"; }
-divider() { printf "  ${GRAY}%s${RESET}\n" "────────────────────────────────────────────────"; }
-
-gap
-divider
-printf "  ${BRMAGENTA}◆◆${RESET}  ${BRWHITE}openclaw-versioning${RESET}\n"
-printf "     ${GRAY}workspace version control — setup${RESET}\n"
-divider
-gap
+echo "**openclaw-versioning** — workspace version control setup"
 
 # ─── Prerequisites ────────────────────────────────────────────────────
 header "Prerequisites"
@@ -35,11 +19,12 @@ command -v git &>/dev/null || fail "git not found — install it first"
 success "git $(git --version | awk '{print $3}')"
 
 [ -d "$WORKSPACE" ] || fail "Workspace not found: $WORKSPACE"
-success "workspace ${GRAY}$WORKSPACE${RESET}"
+success "workspace \`$WORKSPACE\`"
 
-command -v openclaw &>/dev/null || warn "openclaw CLI not found — you'll need to enable hooks manually"
 if command -v openclaw &>/dev/null; then
   success "openclaw $(openclaw --version 2>/dev/null | head -1 | awk '{print $3}')"
+else
+  warn "openclaw CLI not found — you'll need to enable hooks manually"
 fi
 
 # ─── Install hooks ────────────────────────────────────────────────────
@@ -53,7 +38,7 @@ for hook in "${HOOKS[@]}"; do
   dest="$HOOKS_DEST/$hook"
 
   if [ ! -d "$src" ]; then
-    warn "Hook source not found: $src"
+    warn "Hook source not found: \`$src\`"
     continue
   fi
 
@@ -64,10 +49,10 @@ for hook in "${HOOKS[@]}"; do
   fi
 
   cp -r "$src" "$dest"
-  success "Installed ${BRCYAN}${hook}${RESET}"
+  success "Installed \`$hook\`"
 done
 
-# ─── Enable hooks via config + restart ────────────────────────────────
+# ─── Enable hooks via config ──────────────────────────────────────────
 header "Activating hooks"
 
 OPENCLAW_CFG="${OPENCLAW_CONFIG:-$HOME/.openclaw/openclaw.json}"
@@ -80,22 +65,10 @@ if [ -f "$OPENCLAW_CFG" ] && command -v jq &>/dev/null; then
     .hooks.internal.entries["openclaw-versioning-commit"].enabled = true
   ' "$OPENCLAW_CFG" > "$TMP" && mv "$TMP" "$OPENCLAW_CFG"
   success "Hooks enabled in config"
-
-  if command -v openclaw &>/dev/null; then
-    gap
-    step "Restarting gateway..."
-    if openclaw gateway restart >/dev/null 2>&1; then
-      success "Gateway restarted — hooks are live"
-    else
-      warn "Gateway restart failed — run: ${BRCYAN}openclaw gateway restart${RESET}"
-    fi
-  else
-    warn "Restart the gateway to activate hooks: ${BRCYAN}openclaw gateway restart${RESET}"
-  fi
 else
   warn "Could not update hook config — enable manually after restarting:"
   for hook in "${HOOKS[@]}"; do
-    printf "    ${GRAY}openclaw hooks enable %s${RESET}\n" "$hook"
+    echo "  - \`openclaw hooks enable $hook\`"
   done
 fi
 
@@ -106,20 +79,20 @@ if command -v openclaw &>/dev/null; then
   CRON_NAME="openclaw-versioning-commit"
   CRON_CMD="bash $SCRIPT_DIR/scripts/commit.sh"
   if openclaw cron list --json 2>/dev/null | jq -e --arg name "$CRON_NAME" '.jobs[] | select(.name == $name)' >/dev/null 2>&1; then
-    success "Cron ${BRCYAN}${CRON_NAME}${RESET} already registered"
+    success "Cron \`$CRON_NAME\` already registered"
   elif openclaw cron add \
     --name "$CRON_NAME" \
     --cron "*/10 * * * *" \
     --message "$CRON_CMD" \
     --session isolated \
     --no-deliver >/dev/null 2>&1; then
-    success "Registered ${BRCYAN}${CRON_NAME}${RESET} (every 10 min)"
+    success "Registered \`$CRON_NAME\` (every 10 min)"
   else
-    warn "Cron registration failed — check with: ${BRCYAN}openclaw cron list${RESET}"
+    warn "Cron registration failed — check with: \`openclaw cron list\`"
   fi
 else
   warn "Register cron manually after gateway starts:"
-  printf "    ${GRAY}openclaw cron add --name openclaw-versioning-commit --cron '*/10 * * * *' --message 'bash %s/scripts/commit.sh' --session isolated --no-deliver${RESET}\n" "$SCRIPT_DIR"
+  echo "  \`openclaw cron add --name openclaw-versioning-commit --cron '*/10 * * * *' --message 'bash $SCRIPT_DIR/scripts/commit.sh' --session isolated --no-deliver\`"
 fi
 
 # ─── Initialize git repo ──────────────────────────────────────────────
@@ -127,7 +100,7 @@ header "Git repository"
 
 if [ -d "$WORKSPACE/.git" ]; then
   COMMIT_COUNT=$(cd "$WORKSPACE" && git rev-list --count HEAD 2>/dev/null || echo "0")
-  success "Already initialized ${GRAY}(${COMMIT_COUNT} commits)${RESET}"
+  success "Already initialized _($COMMIT_COUNT commits)_"
 else
   (cd "$WORKSPACE" && git init -b main) >/dev/null 2>&1
   success "Initialized git repository"
@@ -150,7 +123,7 @@ state.json
 # OpenClaw internal
 .openclaw/
 GITIGNORE
-  success "Created ${BRCYAN}.gitignore${RESET}"
+  success "Created \`.gitignore\`"
 fi
 
 # ─── Seed workspace config ────────────────────────────────────────────
@@ -177,9 +150,9 @@ if [ ! -f "$WORKSPACE_CFG" ]; then
   ]
 }
 EOF
-  success "Created ${BRCYAN}.openclaw-versioning.json${RESET}"
+  success "Created \`.openclaw-versioning.json\`"
 else
-  success ".openclaw-versioning.json already exists — leaving as-is"
+  success "\`.openclaw-versioning.json\` already exists — leaving as-is"
 fi
 
 # ─── First snapshot ───────────────────────────────────────────────────
@@ -193,32 +166,33 @@ done < <(jq -r '.tracked[]?' "$WORKSPACE/.openclaw-versioning.json" 2>/dev/null)
 if ! git diff --cached --quiet 2>/dev/null; then
   git commit -m "Initial snapshot — agent versioning setup" >/dev/null 2>&1
   HASH=$(git rev-parse --short HEAD)
-  success "Snapshot ${BRCYAN}${HASH}${RESET} created"
+  success "Snapshot \`$HASH\` created"
 else
-  printf "  ${DIM}No new files to commit${RESET}\n"
+  echo "_No new files to commit_"
 fi
 
 # ─── Done ─────────────────────────────────────────────────────────────
-gap
-divider
-printf "  ${BRGREEN}✓${RESET}  ${BRWHITE}agent versioning is active${RESET}\n"
-divider
-gap
-printf "  ${BRWHITE}Verify:${RESET}\n"
-printf "  ${BRCYAN}/openclaw-versioning status${RESET}\n"
-gap
-printf "  ${BRWHITE}Push to a remote (optional):${RESET}\n"
-printf "  ${GRAY}gh auth login${RESET}\n"
-printf "  ${GRAY}cd %s${RESET}\n" "$WORKSPACE"
-printf "  ${GRAY}git remote add origin <url>${RESET}\n"
-printf "  ${GRAY}# add to .openclaw-versioning.json:${RESET}\n"
-printf "  ${GRAY}{ \"git\": { \"remote\": \"origin\", \"branch\": \"main\" } }${RESET}\n"
-gap
-printf "  ${BRWHITE}Commands:${RESET}\n"
-printf "  ${BRCYAN}/openclaw-versioning log${RESET}\n"
-printf "  ${BRCYAN}/openclaw-versioning diff${RESET} ${DIM}<hash>${RESET}\n"
-printf "  ${BRCYAN}/openclaw-versioning rollback${RESET} ${DIM}<hash>${RESET}\n"
-printf "  ${BRCYAN}/openclaw-versioning restore${RESET} ${DIM}<file> <hash>${RESET}\n"
-printf "  ${BRCYAN}/openclaw-versioning snapshot${RESET} ${DIM}\"description\"${RESET}\n"
-printf "  ${BRCYAN}/openclaw-versioning commit${RESET}\n"
-gap
+echo ""
+echo "---"
+echo ""
+echo "✓ **Setup complete** — restart to activate hooks"
+echo ""
+echo "**Required — run in your terminal:**"
+echo "\`openclaw gateway restart\`"
+echo ""
+echo "**Then verify:**"
+echo "\`/openclaw-versioning status\`"
+echo ""
+echo "**Push to a remote (optional):**"
+echo "\`gh auth login\`"
+echo "\`cd $WORKSPACE\`"
+echo "\`git remote add origin <url>\`"
+echo "_then add to \`.openclaw-versioning.json\`: \`{ \"git\": { \"remote\": \"origin\", \"branch\": \"main\" } }\`_"
+echo ""
+echo "**Commands:**"
+echo "- \`/openclaw-versioning log\`"
+echo "- \`/openclaw-versioning diff <hash>\`"
+echo "- \`/openclaw-versioning rollback <hash>\`"
+echo "- \`/openclaw-versioning restore <file> <hash>\`"
+echo "- \`/openclaw-versioning snapshot \"description\"\`"
+echo "- \`/openclaw-versioning commit\`"

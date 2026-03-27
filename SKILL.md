@@ -13,18 +13,13 @@ Between turns, tracked workspace files are diffed and staged with sender attribu
 
 ## Output Contract
 
-For every command in this skill, including `setup`:
+For every command in this skill:
 
 1. Run exactly the documented script command for that action.
-2. Return full script output verbatim, including both stdout and stderr.
-3. Present output in a fenced `text` code block for readability.
-4. If output is too long for one message, send it in ordered chunks labeled `Part 1/N`, `Part 2/N`, etc., without omitting lines.
-
-Preferred response shape:
-
-```text
-[script output here, unchanged]
-```
+2. Return the script's stdout verbatim — do not reformat, summarize, or paraphrase it. The scripts output markdown directly.
+3. Do not wrap the output in a code block. Render it as markdown so it displays properly.
+4. You may append a brief addendum only if it adds necessary context (e.g., a next-step suggestion or error clarification). Keep it to one line.
+5. If output is too long for one message, send it in ordered chunks labeled `Part 1/N`, `Part 2/N`, etc., without omitting lines.
 
 ## Commands
 
