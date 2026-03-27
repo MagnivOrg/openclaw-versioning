@@ -5,12 +5,13 @@ SCRIPT_DIR="$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)"
 WORKSPACE="${OPENCLAW_WORKSPACE:-$HOME/.openclaw/workspace}"
 HOOKS_DEST="$WORKSPACE/hooks"
 
-success() { echo "- ✓ $*"; }
-warn()    { echo "- ! $*"; }
-fail()    { echo "- ✗ $*"; exit 1; }
+success() { echo "✅ $*"; echo ""; }
+warn()    { echo "⚠️  $*"; echo ""; }
+fail()    { echo "❌ $*"; exit 1; }
 header()  { echo ""; echo "**$***"; echo ""; }
 
-echo "**openclaw-versioning** — workspace version control setup"
+echo "> 🗂️  **openclaw-versioning**"
+echo "> _workspace version control — setup_"
 
 # ─── Prerequisites ────────────────────────────────────────────────────
 header "Prerequisites"
@@ -28,7 +29,7 @@ else
 fi
 
 # ─── Install hooks ────────────────────────────────────────────────────
-header "Installing hooks"
+header "🪝 Installing hooks"
 
 mkdir -p "$HOOKS_DEST"
 
@@ -53,7 +54,7 @@ for hook in "${HOOKS[@]}"; do
 done
 
 # ─── Enable hooks via config ──────────────────────────────────────────
-header "Activating hooks"
+header "⚡ Activating hooks"
 
 OPENCLAW_CFG="${OPENCLAW_CONFIG:-$HOME/.openclaw/openclaw.json}"
 
@@ -73,7 +74,7 @@ else
 fi
 
 # ─── Register cron ────────────────────────────────────────────────────
-header "Registering cron"
+header "⏱️  Registering cron"
 
 if command -v openclaw &>/dev/null; then
   CRON_NAME="openclaw-versioning-commit"
@@ -86,7 +87,7 @@ if command -v openclaw &>/dev/null; then
     --message "$CRON_CMD" \
     --session isolated \
     --no-deliver >/dev/null 2>&1; then
-    success "Registered \`$CRON_NAME\` (every 10 min)"
+    success "Registered \`$CRON_NAME\` _(every 10 min)_"
   else
     warn "Cron registration failed — check with: \`openclaw cron list\`"
   fi
@@ -96,7 +97,7 @@ else
 fi
 
 # ─── Initialize git repo ──────────────────────────────────────────────
-header "Git repository"
+header "📦 Git repository"
 
 if [ -d "$WORKSPACE/.git" ]; then
   COMMIT_COUNT=$(cd "$WORKSPACE" && git rev-list --count HEAD 2>/dev/null || echo "0")
@@ -127,7 +128,7 @@ GITIGNORE
 fi
 
 # ─── Seed workspace config ────────────────────────────────────────────
-header "Workspace config"
+header "🔧 Workspace config"
 
 WORKSPACE_CFG="$WORKSPACE/.openclaw-versioning.json"
 if [ ! -f "$WORKSPACE_CFG" ]; then
@@ -156,7 +157,7 @@ else
 fi
 
 # ─── First snapshot ───────────────────────────────────────────────────
-header "First snapshot"
+header "📸 First snapshot"
 
 cd "$WORKSPACE"
 while IFS= read -r f; do
@@ -175,7 +176,7 @@ fi
 echo ""
 echo "---"
 echo ""
-echo "✓ **Setup complete** — restart to activate hooks"
+echo "🎉 **Setup complete!**"
 echo ""
 echo "**Required — run in your terminal:**"
 echo "\`openclaw gateway restart\`"
