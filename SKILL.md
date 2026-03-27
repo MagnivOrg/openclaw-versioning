@@ -11,10 +11,26 @@ Between turns, tracked workspace files are diffed and staged with sender attribu
 
 > **Output rule:** Every command runs a bash script. Always execute the script and send its complete output to the user. Never summarize, skip, or say "same as before" — run it fresh every time.
 
+## Output Contract
+
+For every command in this skill, including `setup`:
+
+1. Run exactly the documented script command for that action.
+2. Return full script output verbatim, including both stdout and stderr.
+3. Present output in a fenced `text` code block for readability.
+4. If output is too long for one message, send it in ordered chunks labeled `Part 1/N`, `Part 2/N`, etc., without omitting lines.
+
+Preferred response shape:
+
+```text
+[script output here, unchanged]
+```
+
 ## Commands
 
 ### `setup`
 Run first-time setup. Installs hooks, enables them in config, restarts the gateway, registers the cron, initializes the git repo, and takes a first snapshot.
+Return the full setup output exactly as produced by the script (no truncation and no summarization).
 ```bash
 bash {baseDir}/setup.sh
 ```
