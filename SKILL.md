@@ -60,7 +60,7 @@ bash {baseDir}/scripts/diff.sh [commit] [commit2]
 ```
 
 ### `rollback <commit> [reason]`
-Restore ALL tracked files to a previous version. Creates a new commit recording the rollback. The optional reason is appended to the commit message and should capture why the rollback was done.
+Restore ALL tracked files to a previous version. Stages the changes and defers the commit — same flow as `restore`. The optional reason is recorded in the pending log for attribution.
 **Always show the user what will change before rolling back.**
 ```bash
 bash {baseDir}/scripts/rollback.sh <commit> ["reason"]
