@@ -89,13 +89,22 @@ If `git.remote` is not set, commits stay local.
 
 ## Optional remote setup
 
+If you want to back up your workspace to GitHub:
+
+1. Create a new repository on GitHub.
+
+2. Add the remote from your workspace:
+
 ```bash
-gh auth login
-cd $OPENCLAW_WORKSPACE
-git remote add origin <url>
+gh auth login  # if not already authenticated
+gh auth setup-git # if not already linked
+cd ~/.openclaw/workspace  # or your custom workspace path
+git remote add origin git@github.com:YOUR_USERNAME/YOUR_REPO.git
+git branch -M main
+git push -u origin main
 ```
 
-Then set `git.remote` and `git.branch` in `.openclaw-versioning.json`.
+3. Set `git.remote` and `git.branch` in `.openclaw-versioning.json`.
 
 Example:
 
