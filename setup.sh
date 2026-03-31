@@ -109,20 +109,70 @@ fi
 
 if [ ! -f "$WORKSPACE/.gitignore" ]; then
   cat > "$WORKSPACE/.gitignore" << 'GITIGNORE'
-# Runtime data
-memory/
+# secrets
+.env
+.env.*
+*.env
+.envrc
+**/credentials/
+**/secrets/
+**/.credentials
+**/.secrets
+**/api_key*
+**/apikey*
+**/*_key.txt
+**/*_key.json
+**/*_token*
+**/*_secret*
+**/auth_token*
+**/access_token*
+**/refresh_token*
+*.pem
+*.key
+*.p12
+*.pfx
+id_rsa
+id_ed25519
+*.ppk
+client_secret*.json
+service_account*.json
+*-credentials.json
+.aws/
+.azure/
+.gcloud/
+gcloud*.json
+aws_credentials
+
+# runtime
 *.log
+*.tmp
+*.temp
+*.swp
+*.swo
+*~
 *.jsonl
-known_channels.txt
-known_mention_threads.txt
-.DS_Store
-investigations/
 .version-context
 state/
 state.json
+memory/
+.DS_Store
+Thumbs.db
+desktop.ini
 
-# OpenClaw internal
+# openclaw internal
 .openclaw/
+known_channels.txt
+known_mention_threads.txt
+investigations/
+
+# build
+node_modules/
+__pycache__/
+*.pyc
+.cache/
+dist/
+build/
+*.egg-info/
 GITIGNORE
   success "Created \`.gitignore\`"
 fi
@@ -135,19 +185,7 @@ if [ ! -f "$WORKSPACE_CFG" ]; then
   cat > "$WORKSPACE_CFG" << 'EOF'
 {
   "tracked": [
-    "AGENTS.md",
-    "SOUL.md",
-    "IDENTITY.md",
-    "USER.md",
-    "TOOLS.md",
-    "HEARTBEAT.md",
-    "BOOT.md",
-    "BOOTSTRAP.md",
-    "MEMORY.md",
-    ".gitignore",
-    ".openclaw-versioning.json",
-    "skills/",
-    "hooks/"
+    "."
   ]
 }
 EOF
