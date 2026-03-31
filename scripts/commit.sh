@@ -5,7 +5,8 @@ WORKSPACE="${OPENCLAW_WORKSPACE:-$HOME/.openclaw/workspace}"
 cd "$WORKSPACE"
 
 if [ ! -d .git ]; then
-  echo "Error: Versioning not initialized. Run: bash {baseDir}/setup.sh"
+  echo "⚠️ Versioning not initialized"
+  echo "Run \`/openclaw-versioning setup\` to get started."
   exit 1
 fi
 
@@ -34,7 +35,7 @@ done
 # ─── Nothing staged at all → nothing to do ───────────────────────────
 if git diff --cached --quiet 2>/dev/null; then
   [ -f "$PENDING" ] && > "$PENDING"
-  echo "_No changes to commit._"
+  echo "✓ No changes to commit"
   exit 0
 fi
 
@@ -147,8 +148,9 @@ SHORT_HASH=$(git rev-parse --short HEAD)
 
 [ -f "$PENDING" ] && > "$PENDING"
 
-echo "**Committed** \`$SHORT_HASH\` — $SUBJECT by _${USERS}_"
-echo "> $STAGED_FILES"
+echo "✅ **Committed** \`$SHORT_HASH\`"
+echo "$SUBJECT"
+echo "_by $USERS_"
 
 # ─── Push if remote is configured ────────────────────────────────────
 GIT_REMOTE=$(jq -r '.git.remote // ""' "$WORKSPACE/.openclaw-versioning.json" 2>/dev/null || true)
@@ -156,8 +158,8 @@ GIT_BRANCH=$(jq -r '.git.branch // "main"' "$WORKSPACE/.openclaw-versioning.json
 
 if [ -n "$GIT_REMOTE" ]; then
   if git push "$GIT_REMOTE" "$GIT_BRANCH" 2>/dev/null; then
-    echo "_Pushed to \`$GIT_REMOTE\` ($GIT_BRANCH)_"
+    echo "↑ Pushed to \`$GIT_REMOTE/$GIT_BRANCH\`"
   else
-    echo "> ⚠️ Push to \`$GIT_REMOTE\` failed — check your git auth and remote config."
+    echo "⚠️ Push to \`$GIT_REMOTE\` failed"
   fi
 fi

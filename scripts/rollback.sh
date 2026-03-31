@@ -5,7 +5,8 @@ WORKSPACE="${OPENCLAW_WORKSPACE:-$HOME/.openclaw/workspace}"
 cd "$WORKSPACE"
 
 if [ ! -d .git ]; then
-  echo "**Error:** Versioning not initialized. Run \`/openclaw-versioning setup\`."
+  echo "⚠️ Versioning not initialized"
+  echo "Run \`/openclaw-versioning setup\` to get started."
   exit 1
 fi
 
@@ -15,17 +16,17 @@ REASON="${2:-}"
 if [ -z "$TARGET" ]; then
   echo "**Usage:** \`/openclaw-versioning rollback <commit> [reason]\`"
   echo ""
-  echo "**Recent snapshots:**"
+  echo "**Recent commits:**"
   while IFS= read -r hash; do
     date=$(git log --format="%ad" --date=format:"%b %d, %H:%M" -1 "$hash")
     subject=$(git log --format="%s" -1 "$hash")
-    echo "- \`$hash\` · $date · $subject"
+    echo "• \`$hash\` $date — $subject"
   done < <(git log --format="%h" -10)
   exit 1
 fi
 
 if ! git cat-file -e "$TARGET" 2>/dev/null; then
-  echo "**Error:** Commit \`$TARGET\` not found."
+  echo "⚠️ Commit \`$TARGET\` not found"
   exit 1
 fi
 
@@ -58,10 +59,13 @@ if ! git diff --cached --quiet; then
     "$(date +%s000)" "$ACTOR" "$ACTOR" "$CHANNEL" "$TARGET_SHORT" "$REASON")
   printf '%s\n' "$ENTRY" >> "$WORKSPACE/pending_commits.jsonl"
 
-  echo "**Staged rollback** \`$CURRENT_SHORT\` → \`$TARGET_SHORT\`"
-  echo "> $TARGET_MSG"
-  echo "_Triggered by: $ACTOR — commit when ready with \`/openclaw-versioning commit\`_"
+  echo "⏪ **Staged rollback**"
+  echo "\`$CURRENT_SHORT\` → \`$TARGET_SHORT\`"
+  echo "_$TARGET_MSG_"
+  echo ""
+  echo "_by $ACTOR_"
+  echo "Commit with \`/openclaw-versioning commit\`"
 else
-  echo "_No differences — workspace is already at \`$TARGET_SHORT\`._"
+  echo "✓ Already at \`$TARGET_SHORT\`"
   exit 0
 fi
