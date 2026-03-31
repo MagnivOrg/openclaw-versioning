@@ -31,6 +31,7 @@ openclaw gateway restart
 ```text
 /openclaw-versioning setup
 ```
+![Setup command flow in chat](images/setup.png)
 
 4. Restart the gateway again to activate the installed hooks:
 
@@ -43,21 +44,22 @@ openclaw gateway restart
 ```text
 /openclaw-versioning status
 ```
+![Status command output example](images/status.png)
 
 ## Everyday commands
 
 Use these from any connected channel or CLI session.
 
-| Command                                        | What it is for                                                            |
-| ---------------------------------------------- | ------------------------------------------------------------------------- |
-| `/openclaw-versioning status`                  | Check latest commit and pending changes                                   |
-| `/openclaw-versioning log [count] [--detail]`  | Browse recent commit history                                              |
-| `/openclaw-versioning diff`                    | Show tracked file changes not yet committed                               |
-| `/openclaw-versioning diff <commit>`           | Show exactly what was added/removed in a specific commit                  |
-| `/openclaw-versioning diff <from> <to>`        | Show what changed between two commits                                     |
-| `/openclaw-versioning rollback <commit> [reason]` | Restore all tracked files to a previous state, staged for next commit  |
+| Command                                                 | What it is for                                                         |
+| ------------------------------------------------------- | ---------------------------------------------------------------------- |
+| `/openclaw-versioning status`                           | Check latest commit and pending changes                                |
+| `/openclaw-versioning log [count] [--detail]`           | Browse recent commit history                                           |
+| `/openclaw-versioning diff`                             | Show tracked file changes not yet committed                            |
+| `/openclaw-versioning diff <commit>`                    | Show exactly what was added/removed in a specific commit               |
+| `/openclaw-versioning diff <from> <to>`                 | Show what changed between two commits                                  |
+| `/openclaw-versioning rollback <commit> [reason]`       | Restore all tracked files to a previous state, staged for next commit  |
 | `/openclaw-versioning restore <file> <commit> [reason]` | Restore one file from before a specific commit, staged for next commit |
-| `/openclaw-versioning commit [message]`           | Flush pending staged changes as a manual commit, with optional label   |
+| `/openclaw-versioning commit [message]`                 | Flush pending staged changes as a manual commit, with optional label   |
 
 ## Configuration
 
