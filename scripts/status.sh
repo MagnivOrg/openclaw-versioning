@@ -41,11 +41,14 @@ else
 
   echo "**Last commit** \`$HASH\` · $DATE"
 
-  META=""
-  [ -n "$TYPE" ] && META="$TYPE"
-  [ -n "$IDENTITY" ] && META="${META} · triggered by \`${IDENTITY}\`"
-  [ -n "$FILES" ] && META="${META} · \`${FILES}\`"
-  [ -n "$META" ] && echo "_${META}_"
+  META_PARTS=()
+  [ -n "$TYPE" ] && META_PARTS+=("$TYPE")
+  [ -n "$IDENTITY" ] && META_PARTS+=("triggered by \`${IDENTITY}\`")
+  [ -n "$FILES" ] && META_PARTS+=("\`${FILES}\`")
+  if [ ${#META_PARTS[@]} -gt 0 ]; then
+    IFS=' · ' eval 'META="${META_PARTS[*]}"'
+    echo "_${META}_"
+  fi
 fi
 
 
