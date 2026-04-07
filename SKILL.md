@@ -1,116 +1,91 @@
 ---
 name: openclaw-versioning
-description: Version control for the agent's own workspace files — tracks who changed what and when, with git commits attributed to the user who triggered each change. Use when asked to check version history, view diffs, roll back files, take a snapshot, or set up auto-versioning. Triggers on phrases like "what changed", "undo that change", "roll back to", "show history", "take a snapshot", "set up versioning", "who changed".
+description: Advanced handling for agent-versioning requests (history, diffs, restores, rollbacks, snapshots) using git and OpenClaw scripts with clear, user-focused summaries and outputs.
 user-invocable: true
 metadata: {"openclaw":{"requires":{"bins":["git"]}}}
 ---
 
 # OpenClaw Versioning
 
-Between turns, tracked workspace files are diffed and staged with sender attribution. A cron job batches those staged changes into a git commit every 10 minutes.
+OpenClaw tracks workspace file changes between turns and attributes them to the user who triggered the change. Use this skill to answer history and diff questions and to apply controlled restores or rollbacks.
 
-## Natural Language Queries
+## When To Use
 
-When users ask casually about changes ("show me the last few changes", "what's been modified lately", "who changed what today"), use git directly and summarize naturally:
+Use this skill when the user asks about:
+- What changed, who changed it, or when it changed
+- Diffs between versions or commits
+- Rolling back or restoring files
+- Taking or inspecting snapshots or status
+- Setting up or verifying auto-versioning
 
-```bash
-cd $OPENCLAW_WORKSPACE && git log --oneline -10
-cd $OPENCLAW_WORKSPACE && git log --stat -5
-cd $OPENCLAW_WORKSPACE && git diff HEAD~3 --stat
-```
+## Response Framework
 
-Respond conversationally with a brief overview:
-- Files changed and rough description
-- Who triggered changes (from commit messages)
-- Line change size if relevant (+/- counts)
+1. **Clarify intent and scope.**
+	- Determine whether the user wants a quick summary or raw output.
+	- Pin down file(s), time range, and commit identifiers if needed.
 
-Keep it loose — tailor the output to what seems useful. No need to run the formal scripts for casual questions.
+2. **Choose the evidence source.**
+	- Casual queries: use git to gather a compact view.
+	- Explicit `/openclaw-versioning` invocations: run the matching script and return stdout verbatim.
 
-## Slash Commands
+3. **Present results clearly.**
+	- Summarize what changed, who triggered it, and the rough size.
+	- Offer the next most likely action (diff, restore, rollback, or log).
 
-For explicit `/openclaw-versioning <command>` invocations, use the scripts below and return output verbatim.
+4. **Handle destructive actions safely.**
+	- Always show what will change before a rollback or restore.
+	- Prefer `restore` for single-file fixes; use `rollback` only when the user wants to revert everything.
+	- If the target commit is ambiguous, ask a clarification question.
 
-> **Output rule:** Run the script and return stdout exactly — don't reformat or summarize.
+5. **Guide GitHub onboarding for setup.**
+	- After `setup`, proactively ask: "ok do you want help with github?"
+	- If yes, walk them through GitHub onboarding with no extra setup steps required on their side.
+	- Confirm account status, git identity, auth method, and remote configuration.
 
-> **Typo safeguard:** If a command or argument looks like a typo, confirm before running.
+## Output Style
 
-### Commands
+- For summaries, keep it short and conversational.
+- For script-driven output, do not reformat or summarize; if onboarding guidance is needed, provide it after the raw output.
+- If an argument looks like a typo, confirm before running.
 
-#### `setup`
-Run first-time setup. Installs hooks, enables them in config, restarts the gateway, registers the cron, initializes the git repo, and takes a first snapshot.
-Return the full setup output exactly as produced by the script (no truncation and no summarization).
-```bash
-bash {baseDir}/setup.sh
-```
+## Implementation Notes
 
-#### `status`
-Show current versioning state — latest snapshot, uncommitted changes, tracked files. Print the output verbatim.
-```bash
-bash {baseDir}/scripts/status.sh
-```
+- **Casual history or diff:** use a small git window (last 5-10 commits) and include stat output.
+- **Slash commands:** use the scripts in `setup.sh` and `scripts/` with the user-provided arguments.
+- **Setup:** run the setup script, then ask "ok do you want help with github?" and proceed if they confirm.
+- **Restore or rollback:** locate the commit via `log`, then perform the change after showing what will be modified.
 
-#### `log [count] [--detail]`
-Show version history. Run the script and print the output verbatim — do not summarize or reformat it, do not run any additional git commands.
+## Command Reference (Compact)
 
-```bash
-# Default: no args — script defaults to 5 commits
-bash {baseDir}/scripts/log.sh
+Use this only for explicit `/openclaw-versioning` invocations, and return stdout verbatim.
 
-# With full body per commit
-bash {baseDir}/scripts/log.sh --detail
+- `setup` -> `bash {baseDir}/setup.sh`
+- `setup` follow-up -> GitHub onboarding guidance
+- `status` -> `bash {baseDir}/scripts/status.sh`
+- `log` -> `bash {baseDir}/scripts/log.sh [count] [--detail]`
+- `diff` -> `bash {baseDir}/scripts/diff.sh [commit] [commit2]`
+- `rollback` -> `bash {baseDir}/scripts/rollback.sh <commit> ["reason"]`
+- `restore` -> `bash {baseDir}/scripts/restore.sh <file> <commit> ["reason"]`
+- `commit` -> `bash {baseDir}/scripts/commit.sh --manual ["message"]`
 
-# User specifies a count
-bash {baseDir}/scripts/log.sh 10
+## Auto-Versioning Overview
 
-# User specifies count and detail
-bash {baseDir}/scripts/log.sh 10 --detail
-```
+Two hooks capture and commit changes between turns and attribute them to the active user. Defaults can be overridden via `.openclaw-versioning.json`.
 
-#### `diff [commit] [commit2]`
-Show changes. No args = uncommitted. One arg = what changed in that commit. Two args = diff between commits. Print the output verbatim.
-```bash
-bash {baseDir}/scripts/diff.sh [commit] [commit2]
-```
-
-#### `rollback <commit> [reason]`
-Restore ALL tracked files to a previous version. Stages the changes and defers the commit — same flow as `restore`. The optional reason is recorded in the pending log for attribution.
-**Always show the user what will change before rolling back.**
-```bash
-bash {baseDir}/scripts/rollback.sh <commit> ["reason"]
-```
-
-#### `restore <file> <commit> [reason]`
-Restore a **single file** to its state before a specific commit — without touching anything else. Use this when the user wants to undo a specific file's change. The optional reason is recorded in the pending log for attribution.
-
-To find the right commit: run `log`, read the `--- Change log ---` section in each commit body to identify which turn changed the file, then pass that commit hash.
-```bash
-bash {baseDir}/scripts/restore.sh <file> <commit>
-```
-
-**Example undo flow:**
-1. User says "undo Noam's change to AGENTS.md from earlier"
-2. Run `log` to find the commit containing Noam's change to AGENTS.md
-3. Read the change log in that commit body to confirm the right entry
-4. Run `restore.sh AGENTS.md <hash>`
-
-#### `commit [message]`
-Flush pending staged changes as a manual commit. If a message is provided it becomes the commit subject — useful for named checkpoints. Without a message the subject lists the staged files.
-```bash
-bash {baseDir}/scripts/commit.sh --manual
-# or with a message:
-bash {baseDir}/scripts/commit.sh --manual "before big prompt rewrite"
-```
-
-## Auto-Versioning
-
-The two installed hooks handle everything automatically:
-- `openclaw-versioning-capture` fires on `message:received` — saves sender identity to `.version-context`
-- `openclaw-versioning-commit` fires on `message:sent` — diffs tracked files against HEAD, appends attribution to `pending_commits.jsonl`, and stages any changes
-
-Tracked by default: `AGENTS.md`, `SOUL.md`, `IDENTITY.md`, `USER.md`, `TOOLS.md`, `HEARTBEAT.md`, `BOOT.md`, `BOOTSTRAP.md`, `MEMORY.md`, `.gitignore`, `.openclaw-versioning.json`, `skills/`, `hooks/`
+Tracked by default: `AGENTS.md`, `SOUL.md`, `IDENTITY.md`, `USER.md`, `TOOLS.md`, `HEARTBEAT.md`, `BOOT.md`, `BOOTSTRAP.md`, `MEMORY.md`, `.gitignore`, `.openclaw-versioning.json`, `skills/`, `hooks/`.
 
 To override, create `<workspace>/.openclaw-versioning.json`:
 ```json
 { "tracked": ["AGENTS.md", "SOUL.md", "skills/", "hooks/"] }
 ```
+
+## GitHub Onboarding (Setup Add-on)
+
+Use this flow after setup to help users connect the workspace to GitHub, without asking them to do extra prep work:
+
+1. **Account and intent.** Confirm they have a GitHub account and want this repo linked.
+2. **Git identity.** Ensure `user.name` and `user.email` are set for commits.
+3. **Auth method.** Offer SSH or HTTPS; proceed with their preference.
+4. **Remote and verify.** Ensure an `origin` remote exists and verify access.
+5. **Next action.** Create or select the GitHub repo, then push or fetch as needed.
 
