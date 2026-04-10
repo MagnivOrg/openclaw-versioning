@@ -48,6 +48,10 @@ Use this skill when the user asks about:
 - For script-driven output, do not reformat or summarize; if onboarding guidance is needed, provide it after the raw output.
 - If an argument looks like a typo, confirm before running.
 
+## File Content Rules
+
+**Never embed attribution metadata inside file content.** Do not add inline annotations like `(updated by X on date)`, `# changed by Y`, status footnotes, or any other authorship/timestamp markers into the files you edit. Attribution belongs exclusively in the git commit message, which is handled automatically by the hooks and `commit.sh`. Files should contain only their actual content — clean, annotation-free.
+
 ## Implementation Notes
 
 - **Casual history or diff:** use a small git window (last 5-10 commits) and include stat output.

@@ -1,6 +1,6 @@
 # agent-changelog
 
-A versioning skill for [OpenClaw](https://openclaw.dev) that keeps a clear history of workspace changes with sender attribution.
+A versioning skill for Openclaw that keeps a clear history of workspace changes with sender attribution.
 
 Use it to answer questions like:
 
@@ -31,7 +31,7 @@ openclaw gateway restart
 ```text
 /agent-changelog setup
 ```
-![Setup command flow in chat](images/setup.png)
+![Setup command flow in chat](images/setup.gif)
 
 4. Restart the gateway again to activate the installed hooks:
 
@@ -44,7 +44,7 @@ openclaw gateway restart
 ```text
 /agent-changelog status
 ```
-![Status command output example](images/status.png)
+![Status command output example](images/status.gif)
 
 ## Everyday commands
 
