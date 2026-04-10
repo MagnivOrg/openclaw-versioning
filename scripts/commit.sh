@@ -150,7 +150,7 @@ SHORT_HASH=$(git rev-parse --short HEAD)
 
 echo "✅ **Committed** \`$SHORT_HASH\`"
 echo "$SUBJECT"
-echo "_by $USERS_"
+echo "_by $USERS"
 
 # ─── Push if remote is configured ────────────────────────────────────
 GIT_REMOTE=$(jq -r '.git.remote // ""' "$WORKSPACE/.openclaw-versioning.json" 2>/dev/null || true)
