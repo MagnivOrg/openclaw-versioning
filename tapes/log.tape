@@ -8,7 +8,7 @@ Set Theme "TokyoNight"
 Set Padding 24
 
 Hide
-Type "openclaw tui --session demo"
+Type "source ~/.zshrc && bash ~/Desktop/repos/agent-changelog/tapes/reset-session.sh gif-log && clear && openclaw tui --session gif-log"
 Enter
 Sleep 30s
 Show
@@ -16,4 +16,7 @@ Show
 Type "/agent-changelog log --detail"
 Sleep 400ms
 Enter
-Sleep 10s
+Hide
+Sleep 30s
+Show
+Sleep 3s
