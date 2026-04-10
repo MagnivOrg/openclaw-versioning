@@ -74,9 +74,9 @@ Two hooks capture and commit changes between turns and attribute them to the act
 
 Tracked by default: `AGENTS.md`, `SOUL.md`, `IDENTITY.md`, `USER.md`, `TOOLS.md`, `HEARTBEAT.md`, `BOOT.md`, `BOOTSTRAP.md`, `MEMORY.md`, `.gitignore`, `.openclaw-versioning.json`, `skills/`, `hooks/`.
 
-To override, create `<workspace>/.openclaw-versioning.json`:
+To track a different set of files, create `<workspace>/.openclaw-versioning.json` with a `tracked` array listing exactly the files and folders you want versioned (this fully replaces the defaults):
 ```json
-{ "tracked": ["AGENTS.md", "SOUL.md", "skills/", "hooks/"] }
+{ "tracked": ["<file-or-folder>", "<file-or-folder>"] }
 ```
 
 ## GitHub Onboarding (Setup Add-on)
