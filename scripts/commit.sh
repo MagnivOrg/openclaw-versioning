@@ -6,16 +6,25 @@ cd "$WORKSPACE"
 
 if [ ! -d .git ]; then
   echo "⚠️ Versioning not initialized"
-  echo "Run \`/openclaw-versioning setup\` to get started."
+  echo "Run \`/agent-changelog setup\` to get started."
   exit 1
 fi
 
 MANUAL=false
 MESSAGE=""
+SUMMARY=""
 for arg in "$@"; do
   case "$arg" in
     --manual) MANUAL=true ;;
-    *) [ -z "$MESSAGE" ] && MESSAGE="$arg" ;;
+    --summary) shift_next=true ;;
+    *)
+      if [ "${shift_next:-false}" = true ]; then
+        SUMMARY="$arg"
+        shift_next=false
+      elif [ -z "$MESSAGE" ]; then
+        MESSAGE="$arg"
+      fi
+      ;;
   esac
 done
 
@@ -25,10 +34,10 @@ PENDING="$WORKSPACE/pending_commits.jsonl"
 TRACKED=()
 while IFS= read -r item; do
   TRACKED+=("$item")
-done < <(jq -r '.tracked[]?' "$WORKSPACE/.openclaw-versioning.json" 2>/dev/null)
+done < <(jq -r '.tracked[]?' "$WORKSPACE/.agent-changelog.json" 2>/dev/null)
 
 # ─── Stage any unstaged changes to tracked files ─────────────────────
-for f in "${TRACKED[@]}"; do
+for f in "${TRACKED[@]+"${TRACKED[@]}"}"; do
   git add "$f" 2>/dev/null || true
 done
 
@@ -128,11 +137,15 @@ else
   SUBJECT="${PREFIX}: $STAGED_FILES"
 fi
 
+SUMMARY_LINE=""
+[ -n "$SUMMARY" ] && SUMMARY_LINE="Summary: ${SUMMARY}"
+
 if [ -n "$CHANGELOG" ]; then
   MSG="$SUBJECT
 
 Triggered by: ${USERS}
 Turns: ${COUNT}
+${SUMMARY_LINE}
 
 --- Change log ---
 $(printf "%b" "$CHANGELOG")"
@@ -140,7 +153,8 @@ else
   MSG="$SUBJECT
 
 Triggered by: ${USERS}
-Turns: ${COUNT}"
+Turns: ${COUNT}
+${SUMMARY_LINE}"
 fi
 
 git commit -m "$MSG"
@@ -150,11 +164,12 @@ SHORT_HASH=$(git rev-parse --short HEAD)
 
 echo "✅ **Committed** \`$SHORT_HASH\`"
 echo "$SUBJECT"
-echo "_by $USERS"
+echo "_by ${USERS}_"
+[ -n "$SUMMARY" ] && echo "$SUMMARY"
 
 # ─── Push if remote is configured ────────────────────────────────────
-GIT_REMOTE=$(jq -r '.git.remote // ""' "$WORKSPACE/.openclaw-versioning.json" 2>/dev/null || true)
-GIT_BRANCH=$(jq -r '.git.branch // "main"' "$WORKSPACE/.openclaw-versioning.json" 2>/dev/null || true)
+GIT_REMOTE=$(jq -r '.git.remote // ""' "$WORKSPACE/.agent-changelog.json" 2>/dev/null || true)
+GIT_BRANCH=$(jq -r '.git.branch // "main"' "$WORKSPACE/.agent-changelog.json" 2>/dev/null || true)
 
 if [ -n "$GIT_REMOTE" ]; then
   if git push "$GIT_REMOTE" "$GIT_BRANCH" 2>/dev/null; then

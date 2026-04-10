@@ -6,7 +6,7 @@ cd "$WORKSPACE"
 
 if [ ! -d .git ]; then
   echo "⚠️ Versioning not initialized"
-  echo "Run \`/openclaw-versioning setup\` to get started."
+  echo "Run \`/agent-changelog setup\` to get started."
   exit 1
 fi
 

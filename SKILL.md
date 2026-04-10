@@ -1,11 +1,11 @@
 ---
-name: openclaw-versioning
-description: Advanced handling for agent-versioning requests (history, diffs, restores, rollbacks, snapshots) using git and OpenClaw scripts with clear, user-focused summaries and outputs.
+name: agent-changelog
+description: Advanced handling for agent-changelog requests (history, diffs, restores, rollbacks, snapshots) using git and OpenClaw scripts with clear, user-focused summaries and outputs.
 user-invocable: true
 metadata: {"openclaw":{"requires":{"bins":["git"]}}}
 ---
 
-# OpenClaw Versioning
+# Agent Changelog
 
 OpenClaw tracks workspace file changes between turns and attributes them to the user who triggered the change. Use this skill to answer history and diff questions and to apply controlled restores or rollbacks.
 
@@ -26,7 +26,7 @@ Use this skill when the user asks about:
 
 2. **Choose the evidence source.**
 	- Casual queries: use git to gather a compact view.
-	- Explicit `/openclaw-versioning` invocations: run the matching script and return stdout verbatim.
+	- Explicit `/agent-changelog` invocations: run the matching script and return stdout verbatim.
 
 3. **Present results clearly.**
 	- Summarize what changed, who triggered it, and the rough size.
@@ -54,27 +54,29 @@ Use this skill when the user asks about:
 - **Slash commands:** use the scripts in `setup.sh` and `scripts/` with the user-provided arguments.
 - **Setup:** run the setup script, then ask "ok do you want help with github?" and proceed if they confirm.
 - **Restore or rollback:** locate the commit via `log`, then perform the change after showing what will be modified.
+- **Semantic summary:** before every commit, run a quick diff and generate a sparse one-line summary of what changed and why (e.g. "added rate-limit rule to AGENTS.md, updated memory skill"). Always pass it via `--summary` and always include it in any history output presented to the user.
+- **Log output:** `log.sh` outputs raw structured data — present it conversationally based on what the user asked. Don't dump raw script output. Format each entry using the `│`-prefixed box style (same as status output), one entry per block.
 
 ## Command Reference (Compact)
 
-Use this only for explicit `/openclaw-versioning` invocations, and return stdout verbatim.
+Use this only for explicit `/agent-changelog` invocations, and return stdout verbatim.
 
 - `setup` -> `bash {baseDir}/setup.sh`
 - `setup` follow-up -> GitHub onboarding guidance
 - `status` -> `bash {baseDir}/scripts/status.sh`
-- `log` -> `bash {baseDir}/scripts/log.sh [count] [--detail]`
+- `log` -> `bash {baseDir}/scripts/log.sh [count]`
 - `diff` -> `bash {baseDir}/scripts/diff.sh [commit] [commit2]`
 - `rollback` -> `bash {baseDir}/scripts/rollback.sh <commit> ["reason"]`
 - `restore` -> `bash {baseDir}/scripts/restore.sh <file> <commit> ["reason"]`
-- `commit` -> `bash {baseDir}/scripts/commit.sh --manual ["message"]`
+- `commit` -> `bash {baseDir}/scripts/commit.sh --manual ["message"] [--summary "one-line semantic summary"]`
 
 ## Auto-Versioning Overview
 
-Two hooks capture and commit changes between turns and attribute them to the active user. Defaults can be overridden via `.openclaw-versioning.json`.
+Two hooks capture and commit changes between turns and attribute them to the active user. Defaults can be overridden via `.agent-changelog.json`.
 
-Tracked by default: `AGENTS.md`, `SOUL.md`, `IDENTITY.md`, `USER.md`, `TOOLS.md`, `HEARTBEAT.md`, `BOOT.md`, `BOOTSTRAP.md`, `MEMORY.md`, `.gitignore`, `.openclaw-versioning.json`, `skills/`, `hooks/`.
+Tracked by default: `AGENTS.md`, `SOUL.md`, `IDENTITY.md`, `USER.md`, `TOOLS.md`, `HEARTBEAT.md`, `BOOT.md`, `BOOTSTRAP.md`, `MEMORY.md`, `.gitignore`, `.agent-changelog.json`, `skills/`, `hooks/`.
 
-To track a different set of files, create `<workspace>/.openclaw-versioning.json` with a `tracked` array listing exactly the files and folders you want versioned (this fully replaces the defaults):
+To track a different set of files, create `<workspace>/.agent-changelog.json` with a `tracked` array listing exactly the files and folders you want versioned (this fully replaces the defaults):
 ```json
 { "tracked": ["<file-or-folder>", "<file-or-folder>"] }
 ```

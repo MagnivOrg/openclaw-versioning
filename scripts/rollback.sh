@@ -6,7 +6,7 @@ cd "$WORKSPACE"
 
 if [ ! -d .git ]; then
   echo "⚠️ Versioning not initialized"
-  echo "Run \`/openclaw-versioning setup\` to get started."
+  echo "Run \`/agent-changelog setup\` to get started."
   exit 1
 fi
 
@@ -14,7 +14,7 @@ TARGET="${1:-}"
 REASON="${2:-}"
 
 if [ -z "$TARGET" ]; then
-  echo "**Usage:** \`/openclaw-versioning rollback <commit> [reason]\`"
+  echo "**Usage:** \`/agent-changelog rollback <commit> [reason]\`"
   echo ""
   echo "**Recent commits:**"
   while IFS= read -r hash; do
@@ -47,12 +47,12 @@ fi
 # Restore only tracked files
 while IFS= read -r f; do
   git checkout "$TARGET" -- "$f" 2>/dev/null || true
-done < <(jq -r '.tracked[]?' "$WORKSPACE/.openclaw-versioning.json" 2>/dev/null)
+done < <(jq -r '.tracked[]?' "$WORKSPACE/.agent-changelog.json" 2>/dev/null)
 
 # Stage the same tracked files
 while IFS= read -r f; do
   git add "$f" 2>/dev/null || true
-done < <(jq -r '.tracked[]?' "$WORKSPACE/.openclaw-versioning.json" 2>/dev/null)
+done < <(jq -r '.tracked[]?' "$WORKSPACE/.agent-changelog.json" 2>/dev/null)
 
 if ! git diff --cached --quiet; then
   ENTRY=$(printf '{"ts":%s,"user":"%s","userId":"%s","channel":"%s","action":"rollback","target":"%s","reason":"%s","files":[]}' \
@@ -64,7 +64,7 @@ if ! git diff --cached --quiet; then
   echo "_$TARGET_MSG_"
   echo ""
   echo "_by $ACTOR_"
-  echo "Commit with \`/openclaw-versioning commit\`"
+  echo "Commit with \`/agent-changelog commit\`"
 else
   echo "✓ Already at \`$TARGET_SHORT\`"
   exit 0

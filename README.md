@@ -1,4 +1,4 @@
-# openclaw-versioning
+# agent-changelog
 
 A versioning skill for [OpenClaw](https://openclaw.dev) that keeps a clear history of workspace changes with sender attribution.
 
@@ -29,7 +29,7 @@ openclaw gateway restart
 3. In chat, run:
 
 ```text
-/openclaw-versioning setup
+/agent-changelog setup
 ```
 ![Setup command flow in chat](images/setup.png)
 
@@ -42,7 +42,7 @@ openclaw gateway restart
 5. Verify:
 
 ```text
-/openclaw-versioning status
+/agent-changelog status
 ```
 ![Status command output example](images/status.png)
 
@@ -52,18 +52,18 @@ Use these from any connected channel or CLI session.
 
 | Command                                                 | What it is for                                                         |
 | ------------------------------------------------------- | ---------------------------------------------------------------------- |
-| `/openclaw-versioning status`                           | Check latest commit and pending changes                                |
-| `/openclaw-versioning log [count] [--detail]`           | Browse recent commit history                                           |
-| `/openclaw-versioning diff`                             | Show tracked file changes not yet committed                            |
-| `/openclaw-versioning diff <commit>`                    | Show exactly what was added/removed in a specific commit               |
-| `/openclaw-versioning diff <from> <to>`                 | Show what changed between two commits                                  |
-| `/openclaw-versioning rollback <commit> [reason]`       | Restore all tracked files to a previous state, staged for next commit  |
-| `/openclaw-versioning restore <file> <commit> [reason]` | Restore one file from before a specific commit, staged for next commit |
-| `/openclaw-versioning commit [message]`                 | Flush pending staged changes as a manual commit, with optional label   |
+| `/agent-changelog status`                           | Check latest commit and pending changes                                |
+| `/agent-changelog log [count] [--detail]`           | Browse recent commit history                                           |
+| `/agent-changelog diff`                             | Show tracked file changes not yet committed                            |
+| `/agent-changelog diff <commit>`                    | Show exactly what was added/removed in a specific commit               |
+| `/agent-changelog diff <from> <to>`                 | Show what changed between two commits                                  |
+| `/agent-changelog rollback <commit> [reason]`       | Restore all tracked files to a previous state, staged for next commit  |
+| `/agent-changelog restore <file> <commit> [reason]` | Restore one file from before a specific commit, staged for next commit |
+| `/agent-changelog commit [message]`                 | Flush pending staged changes as a manual commit, with optional label   |
 
 ## Configuration
 
-After setup, edit `.openclaw-versioning.json` in your workspace to change what files are tracked.
+After setup, edit `.agent-changelog.json` in your workspace to change what files are tracked.
 
 Default tracked files and folders:
 
@@ -80,7 +80,7 @@ Default tracked files and folders:
     "BOOTSTRAP.md",
     "MEMORY.md",
     ".gitignore",
-    ".openclaw-versioning.json",
+    ".agent-changelog.json",
     "skills/",
     "hooks/"
   ]
@@ -106,7 +106,7 @@ git branch -M main
 git push -u origin main
 ```
 
-3. Set `git.remote` and `git.branch` in `.openclaw-versioning.json`.
+3. Set `git.remote` and `git.branch` in `.agent-changelog.json`.
 
 Example:
 
@@ -126,6 +126,6 @@ This gives you low-noise, attributable history without manual git bookkeeping ev
 
 | File                        | Purpose                                                                       |
 | --------------------------- | ----------------------------------------------------------------------------- |
-| `.openclaw-versioning.json` | Your tracked-files and git push configuration                                 |
+| `.agent-changelog.json` | Your tracked-files and git push configuration                                 |
 | `.version-context`          | Temporary sender handoff between hooks (not committed)                        |
 | `pending_commits.jsonl`     | Pending attribution entries waiting for the next batch commit (not committed) |

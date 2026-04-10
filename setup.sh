@@ -10,7 +10,7 @@ warn()    { echo "⚠️  $*"; echo ""; }
 fail()    { echo "❌ $*"; exit 1; }
 header()  { echo ""; echo "**$***"; echo ""; }
 
-echo "> 🗂️  **openclaw-versioning**"
+echo "> 🗂️  **agent-changelog**"
 echo "> _workspace version control — setup_"
 
 # ─── Prerequisites ────────────────────────────────────────────────────
@@ -33,7 +33,7 @@ header "🪝 Installing hooks"
 
 mkdir -p "$HOOKS_DEST"
 
-HOOKS=("openclaw-versioning-capture" "openclaw-versioning-commit")
+HOOKS=("agent-changelog-capture" "agent-changelog-commit")
 for hook in "${HOOKS[@]}"; do
   src="$SCRIPT_DIR/hooks/$hook"
   dest="$HOOKS_DEST/$hook"
@@ -62,8 +62,8 @@ if [ -f "$OPENCLAW_CFG" ] && command -v jq &>/dev/null; then
   TMP=$(mktemp)
   jq '
     .hooks.internal.enabled = true |
-    .hooks.internal.entries["openclaw-versioning-capture"].enabled = true |
-    .hooks.internal.entries["openclaw-versioning-commit"].enabled = true
+    .hooks.internal.entries["agent-changelog-capture"].enabled = true |
+    .hooks.internal.entries["agent-changelog-commit"].enabled = true
   ' "$OPENCLAW_CFG" > "$TMP" && mv "$TMP" "$OPENCLAW_CFG"
   success "Hooks enabled in config"
 else
@@ -77,7 +77,7 @@ fi
 header "⏱️  Registering cron"
 
 if command -v openclaw &>/dev/null; then
-  CRON_NAME="openclaw-versioning-commit"
+  CRON_NAME="agent-changelog-commit"
   CRON_CMD="bash $SCRIPT_DIR/scripts/commit.sh"
   if openclaw cron list --json 2>/dev/null | jq -e --arg name "$CRON_NAME" '.jobs[] | select(.name == $name)' >/dev/null 2>&1; then
     success "Cron \`$CRON_NAME\` already registered"
@@ -93,7 +93,7 @@ if command -v openclaw &>/dev/null; then
   fi
 else
   warn "Register cron manually after gateway starts:"
-  echo "  \`openclaw cron add --name openclaw-versioning-commit --cron '*/10 * * * *' --message 'bash $SCRIPT_DIR/scripts/commit.sh' --session isolated --no-deliver\`"
+  echo "  \`openclaw cron add --name agent-changelog-commit --cron '*/10 * * * *' --message 'bash $SCRIPT_DIR/scripts/commit.sh' --session isolated --no-deliver\`"
 fi
 
 # ─── Initialize git repo ──────────────────────────────────────────────
@@ -180,7 +180,7 @@ fi
 # ─── Seed workspace config ────────────────────────────────────────────
 header "🔧 Workspace config"
 
-WORKSPACE_CFG="$WORKSPACE/.openclaw-versioning.json"
+WORKSPACE_CFG="$WORKSPACE/.agent-changelog.json"
 if [ ! -f "$WORKSPACE_CFG" ]; then
   cat > "$WORKSPACE_CFG" << 'EOF'
 {
@@ -189,9 +189,9 @@ if [ ! -f "$WORKSPACE_CFG" ]; then
   ]
 }
 EOF
-  success "Created \`.openclaw-versioning.json\`"
+  success "Created \`.agent-changelog.json\`"
 else
-  success "\`.openclaw-versioning.json\` already exists — leaving as-is"
+  success "\`.agent-changelog.json\` already exists — leaving as-is"
 fi
 
 # ─── First snapshot ───────────────────────────────────────────────────
@@ -200,7 +200,7 @@ header "📸 First snapshot"
 cd "$WORKSPACE"
 while IFS= read -r f; do
   git add "$f" 2>/dev/null || true
-done < <(jq -r '.tracked[]?' "$WORKSPACE/.openclaw-versioning.json" 2>/dev/null)
+done < <(jq -r '.tracked[]?' "$WORKSPACE/.agent-changelog.json" 2>/dev/null)
 
 if ! git diff --cached --quiet 2>/dev/null; then
   git commit -m "Initial snapshot — agent versioning setup" >/dev/null 2>&1
@@ -220,18 +220,18 @@ echo "**Required — run in your terminal:**"
 echo "\`openclaw gateway restart\`"
 echo ""
 echo "**Then verify:**"
-echo "\`/openclaw-versioning status\`"
+echo "\`/agent-changelog status\`"
 echo ""
 echo "**Push to a remote (optional):**"
 echo "\`gh auth login\`"
 echo "\`cd $WORKSPACE\`"
 echo "\`git remote add origin <url>\`"
-echo "_then add to \`.openclaw-versioning.json\`: \`{ \"git\": { \"remote\": \"origin\", \"branch\": \"main\" } }\`_"
+echo "_then add to \`.agent-changelog.json\`: \`{ \"git\": { \"remote\": \"origin\", \"branch\": \"main\" } }\`_"
 echo ""
 echo "**Commands:**"
-echo "- \`/openclaw-versioning log\`"
-echo "- \`/openclaw-versioning diff <hash>\`"
-echo "- \`/openclaw-versioning rollback <hash>\`"
-echo "- \`/openclaw-versioning restore <file> <hash>\`"
-echo "- \`/openclaw-versioning snapshot \"description\"\`"
-echo "- \`/openclaw-versioning commit\`"
+echo "- \`/agent-changelog log\`"
+echo "- \`/agent-changelog diff <hash>\`"
+echo "- \`/agent-changelog rollback <hash>\`"
+echo "- \`/agent-changelog restore <file> <hash>\`"
+echo "- \`/agent-changelog snapshot \"description\"\`"
+echo "- \`/agent-changelog commit\`"

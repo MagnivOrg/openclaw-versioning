@@ -6,7 +6,7 @@ cd "$WORKSPACE"
 
 if [ ! -d .git ]; then
   echo "⚠️ Versioning not initialized"
-  echo "Run \`/openclaw-versioning setup\` to get started."
+  echo "Run \`/agent-changelog setup\` to get started."
   exit 1
 fi
 
@@ -15,10 +15,10 @@ COMMIT="${2:-}"
 REASON="${3:-}"
 
 if [ -z "$FILE" ] || [ -z "$COMMIT" ]; then
-  echo "**Usage:** \`/openclaw-versioning restore <file> <commit> [reason]\`"
+  echo "**Usage:** \`/agent-changelog restore <file> <commit> [reason]\`"
   echo ""
   echo "Restores a single file to its state before the given commit."
-  echo "Run \`/openclaw-versioning log\` to find the right commit."
+  echo "Run \`/agent-changelog log\` to find the right commit."
   exit 1
 fi
 
@@ -55,4 +55,4 @@ echo "📌 **Staged restore**"
 echo "\`$FILE\` → before \`$TARGET_SHORT\`"
 echo "_by $USER_"
 echo ""
-echo "Commit with \`/openclaw-versioning commit\`"
+echo "Commit with \`/agent-changelog commit\`"
