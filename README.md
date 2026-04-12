@@ -28,7 +28,7 @@ openclaw gateway restart
 
 3. In chat, run:
 
-```text
+```bash
 /agent-changelog setup
 ```
 ![Setup command flow in chat](images/setup.gif)
@@ -41,78 +41,43 @@ openclaw gateway restart
 
 5. Verify:
 
-```text
+```bash
 /agent-changelog status
 ```
 ![Status command output example](images/status.gif)
 
-## Everyday commands
+Note: Remote configuration is handled by the setup installer when you opt in to remote push.
 
-Use these from any connected channel or CLI session.
+## Example usages
 
-| Command                                                 | What it is for                                                         |
-| ------------------------------------------------------- | ---------------------------------------------------------------------- |
-| `/agent-changelog status`                           | Check latest commit and pending changes                                |
-| `/agent-changelog log [count] [--detail]`           | Browse recent commit history                                           |
-| `/agent-changelog diff`                             | Show tracked file changes not yet committed                            |
-| `/agent-changelog diff <commit>`                    | Show exactly what was added/removed in a specific commit               |
-| `/agent-changelog diff <from> <to>`                 | Show what changed between two commits                                  |
-| `/agent-changelog rollback <commit> [reason]`       | Restore all tracked files to a previous state, staged for next commit  |
-| `/agent-changelog restore <file> <commit> [reason]` | Restore one file from before a specific commit, staged for next commit |
-| `/agent-changelog commit [message]`                 | Flush pending staged changes as a manual commit, with optional label   |
+Check the latest commit and pending changes:
+```text
+/agent-changelog show me the recent changes
+```
+
+Browse specific recent history:
+```text
+/agent-changelog show me the last 10 changes made to the SOUL file
+```
+
+See what is pending before the next batch commit:
+```text
+/agent-changelog what are the uncommitted changes?
+```
 
 ## Configuration
 
-After setup, edit `.agent-changelog.json` in your workspace to change what files are tracked.
-
-Default tracked files and folders:
+After setup, `.agent-changelog.json` is created (if missing) and defaults to tracking the entire workspace:
 
 ```json
 {
   "tracked": [
-    "AGENTS.md",
-    "SOUL.md",
-    "IDENTITY.md",
-    "USER.md",
-    "TOOLS.md",
-    "HEARTBEAT.md",
-    "BOOT.md",
-    "BOOTSTRAP.md",
-    "MEMORY.md",
-    ".gitignore",
-    ".agent-changelog.json",
-    "skills/",
-    "hooks/"
+    "."
   ]
 }
 ```
 
-If `git.remote` is not set, commits stay local.
-
-## Optional remote setup
-
-If you want to back up your workspace to GitHub:
-
-1. Create a new repository on GitHub.
-
-2. Add the remote from your workspace:
-
-```bash
-gh auth login  # if not already authenticated
-gh auth setup-git # if not already linked
-cd ~/.openclaw/workspace  # or your custom workspace path
-git remote add origin git@github.com:YOUR_USERNAME/YOUR_REPO.git
-git branch -M main
-git push -u origin main
-```
-
-3. Set `git.remote` and `git.branch` in `.agent-changelog.json`.
-
-Example:
-
-```json
-{ "git": { "remote": "origin", "branch": "main" } }
-```
+Edit this file to narrow or expand what gets tracked.
 
 ## In one minute: how it behaves
 

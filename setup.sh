@@ -161,9 +161,6 @@ desktop.ini
 
 # openclaw internal
 .openclaw/
-known_channels.txt
-known_mention_threads.txt
-investigations/
 
 # build
 node_modules/
@@ -228,10 +225,3 @@ echo "\`cd $WORKSPACE\`"
 echo "\`git remote add origin <url>\`"
 echo "_then add to \`.agent-changelog.json\`: \`{ \"git\": { \"remote\": \"origin\", \"branch\": \"main\" } }\`_"
 echo ""
-echo "**Commands:**"
-echo "- \`/agent-changelog log\`"
-echo "- \`/agent-changelog diff <hash>\`"
-echo "- \`/agent-changelog rollback <hash>\`"
-echo "- \`/agent-changelog restore <file> <hash>\`"
-echo "- \`/agent-changelog snapshot \"description\"\`"
-echo "- \`/agent-changelog commit\`"
