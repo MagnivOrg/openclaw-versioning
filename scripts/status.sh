@@ -51,15 +51,24 @@ fi
 
 echo ""
 
-CHANGES=$(git diff HEAD --name-only 2>/dev/null | wc -l | tr -d ' ')
+MODIFIED=$(git diff HEAD --name-only 2>/dev/null)
+UNTRACKED=$(git ls-files --others --exclude-standard 2>/dev/null)
+ALL_CHANGES=$(printf '%s\n%s\n' "$MODIFIED" "$UNTRACKED" | grep -v '^$' || true)
+CHANGES=$(printf '%s\n' "$ALL_CHANGES" | grep -c . || true)
+
 if [ "$CHANGES" -gt 0 ]; then
   LABEL=$([ "$CHANGES" -eq 1 ] && echo "file" || echo "files")
   echo "✏️ **$CHANGES uncommitted $LABEL:**"
-  git diff HEAD --name-only 2>/dev/null | while IFS= read -r file; do
-    added=$(git diff HEAD -- "$file" 2>/dev/null | grep -c '^+[^+]' || true)
-    removed=$(git diff HEAD -- "$file" 2>/dev/null | grep -c '^-[^-]' || true)
-    echo "• \`$file\` +$added/-$removed"
-  done
+  while IFS= read -r file; do
+    [ -z "$file" ] && continue
+    if echo "$MODIFIED" | grep -qF "$file"; then
+      added=$(git diff HEAD -- "$file" 2>/dev/null | grep -c '^+[^+]' || true)
+      removed=$(git diff HEAD -- "$file" 2>/dev/null | grep -c '^-[^-]' || true)
+      echo "• \`$file\` +$added/-$removed"
+    else
+      echo "• \`$file\` new"
+    fi
+  done <<< "$ALL_CHANGES"
 else
   echo "✓ No uncommitted changes"
 fi
