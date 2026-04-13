@@ -1,5 +1,5 @@
 #!/bin/bash
-set -uo pipefail
+set -euo pipefail
 
 SCRIPT_DIR="$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)"
 WORKSPACE="${OPENCLAW_WORKSPACE:-$HOME/.openclaw/workspace}"
@@ -18,6 +18,9 @@ header "Prerequisites"
 
 command -v git &>/dev/null || fail "git not found — install it first"
 success "git $(git --version | awk '{print $3}')"
+
+command -v jq &>/dev/null || fail "jq not found — install it first"
+success "jq $(jq --version)"
 
 [ -d "$WORKSPACE" ] || fail "Workspace not found: $WORKSPACE"
 success "workspace \`$WORKSPACE\`"
@@ -172,6 +175,8 @@ build/
 *.egg-info/
 GITIGNORE
   success "Created \`.gitignore\`"
+else
+  warn ".gitignore already exists — left untouched. Review it before pushing to a remote to make sure secrets are excluded."
 fi
 
 # ─── Seed workspace config ────────────────────────────────────────────
@@ -209,19 +214,4 @@ fi
 
 # ─── Done ─────────────────────────────────────────────────────────────
 echo ""
-echo "---"
-echo ""
 echo "🎉 **Setup complete!**"
-echo ""
-echo "**Required — run in your terminal:**"
-echo "\`openclaw gateway restart\`"
-echo ""
-echo "**Then verify:**"
-echo "\`/agent-changelog status\`"
-echo ""
-echo "**Push to a remote (optional):**"
-echo "\`gh auth login\`"
-echo "\`cd $WORKSPACE\`"
-echo "\`git remote add origin <url>\`"
-echo "_then add to \`.agent-changelog.json\`: \`{ \"git\": { \"remote\": \"origin\", \"branch\": \"main\" } }\`_"
-echo ""

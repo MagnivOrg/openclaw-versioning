@@ -137,24 +137,19 @@ else
   SUBJECT="${PREFIX}: $STAGED_FILES"
 fi
 
-SUMMARY_LINE=""
-[ -n "$SUMMARY" ] && SUMMARY_LINE="Summary: ${SUMMARY}"
-
-if [ -n "$CHANGELOG" ]; then
-  MSG="$SUBJECT
+MSG="$SUBJECT
 
 Triggered by: ${USERS}
-Turns: ${COUNT}
-${SUMMARY_LINE}
+Turns: ${COUNT}"
+
+[ -n "$SUMMARY" ] && MSG="${MSG}
+Summary: ${SUMMARY}"
+
+if [ -n "$CHANGELOG" ]; then
+  MSG="${MSG}
 
 --- Change log ---
 $(printf "%b" "$CHANGELOG")"
-else
-  MSG="$SUBJECT
-
-Triggered by: ${USERS}
-Turns: ${COUNT}
-${SUMMARY_LINE}"
 fi
 
 git commit -m "$MSG"
@@ -168,12 +163,11 @@ echo "_by ${USERS}_"
 [ -n "$SUMMARY" ] && echo "$SUMMARY"
 
 # ─── Push if remote is configured ────────────────────────────────────
-GIT_REMOTE=$(jq -r '.git.remote // ""' "$WORKSPACE/.agent-changelog.json" 2>/dev/null || true)
-GIT_BRANCH=$(jq -r '.git.branch // "main"' "$WORKSPACE/.agent-changelog.json" 2>/dev/null || true)
+GIT_REMOTE=$(git remote 2>/dev/null | head -1)
 
 if [ -n "$GIT_REMOTE" ]; then
-  if git push "$GIT_REMOTE" "$GIT_BRANCH" 2>/dev/null; then
-    echo "↑ Pushed to \`$GIT_REMOTE/$GIT_BRANCH\`"
+  if git push "$GIT_REMOTE" 2>/dev/null; then
+    echo "↑ Pushed to \`$GIT_REMOTE\`"
   else
     echo "⚠️ Push to \`$GIT_REMOTE\` failed"
   fi

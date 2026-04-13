@@ -26,9 +26,6 @@ else
   elif echo "$SUBJECT" | grep -qi "^manual commit"; then
     TYPE="Manual"
     FILES=$(echo "$SUBJECT" | sed 's/^[Mm]anual commit[^:]*: //')
-  elif echo "$SUBJECT" | grep -qi "^snapshot"; then
-    TYPE="Snapshot"
-    FILES=$(echo "$SUBJECT" | sed 's/^[Ss]napshot[^:]*: //')
   elif echo "$SUBJECT" | grep -qi "^rollback"; then
     TYPE="Rollback"
     FILES=""
@@ -48,8 +45,7 @@ else
   [ -n "$IDENTITY" ] && META_PARTS+=("by $IDENTITY")
   [ -n "$FILES" ] && META_PARTS+=("$FILES")
   if [ ${#META_PARTS[@]} -gt 0 ]; then
-    IFS=' · ' eval 'META="${META_PARTS[*]}"'
-    echo "_${META}_"
+    (IFS=' · '; echo "_${META_PARTS[*]}_")
   fi
 fi
 

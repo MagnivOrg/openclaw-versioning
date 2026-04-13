@@ -37,12 +37,15 @@ TARGET_MSG=$(git log --format="%s" -1 "$TARGET")
 # Read identity from version context
 CTX="$WORKSPACE/.version-context"
 ACTOR="unknown"
+ACTOR_ID="unknown"
 CHANNEL="unknown"
 if [ -f "$CTX" ] && command -v jq &>/dev/null; then
   ACTOR=$(jq -r '.user // "unknown"' "$CTX" 2>/dev/null || echo "unknown")
+  ACTOR_ID=$(jq -r '.userId // "unknown"' "$CTX" 2>/dev/null || echo "unknown")
   CHANNEL=$(jq -r '.channel // "unknown"' "$CTX" 2>/dev/null || echo "unknown")
 fi
 [ "$ACTOR" = "unknown" ] && ACTOR="skill invocation"
+[ "$ACTOR_ID" = "unknown" ] && ACTOR_ID="skill invocation"
 
 # Restore only tracked files
 while IFS= read -r f; do
@@ -55,15 +58,21 @@ while IFS= read -r f; do
 done < <(jq -r '.tracked[]?' "$WORKSPACE/.agent-changelog.json" 2>/dev/null)
 
 if ! git diff --cached --quiet; then
-  ENTRY=$(printf '{"ts":%s,"user":"%s","userId":"%s","channel":"%s","action":"rollback","target":"%s","reason":"%s","files":[]}' \
-    "$(date +%s000)" "$ACTOR" "$ACTOR" "$CHANNEL" "$TARGET_SHORT" "$REASON")
+  ENTRY=$(jq -n \
+    --argjson ts "$(date +%s000)" \
+    --arg user "$ACTOR" \
+    --arg userId "$ACTOR_ID" \
+    --arg channel "$CHANNEL" \
+    --arg target "$TARGET_SHORT" \
+    --arg reason "$REASON" \
+    '{"ts":$ts,"user":$user,"userId":$userId,"channel":$channel,"action":"rollback","target":$target,"reason":$reason,"files":[]}')
   printf '%s\n' "$ENTRY" >> "$WORKSPACE/pending_commits.jsonl"
 
   echo "⏪ **Staged rollback**"
   echo "\`$CURRENT_SHORT\` → \`$TARGET_SHORT\`"
   echo "_$TARGET_MSG_"
   echo ""
-  echo "_by $ACTOR_"
+  echo "_by ${ACTOR}_"
   echo "Commit with \`/agent-changelog commit\`"
 else
   echo "✓ Already at \`$TARGET_SHORT\`"

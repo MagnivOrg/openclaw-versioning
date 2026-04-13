@@ -1,6 +1,6 @@
 # agent-changelog
 
-A versioning skill for Openclaw that keeps a clear history of workspace changes with sender attribution.
+A versioning skill for OpenClaw that keeps a clear history of workspace changes with sender attribution.
 
 Use it to answer questions like:
 
@@ -84,6 +84,16 @@ After setup, `.agent-changelog.json` is created (if missing) and defaults to tra
 
 Edit this file to narrow or expand what gets tracked.
 
+## A note on secrets
+
+By default, agent-changelog tracks your entire workspace. Setup creates a `.gitignore` that excludes common secret patterns — `.env` files, API keys, tokens, credentials, cloud config directories, and more.
+
+A few things to be careful about:
+
+- **If your workspace already has a `.gitignore`**, setup leaves it untouched. Make sure it excludes anything sensitive before enabling tracking.
+- **If you're pushing to a remote**, audit your workspace for hardcoded secrets in tracked files (SOUL.md, AGENTS.md, etc.) before the first push.
+- **Narrow your tracking** if you're unsure. Edit `.agent-changelog.json` to list only the specific files you want versioned instead of `.`.
+
 ## In one minute: how it behaves
 
 - On `message:received`, sender details are captured.
@@ -98,12 +108,12 @@ This gives you low-noise, attributable history without manual git bookkeeping ev
 No. The hooks rely on OpenClaw's event system (`message:received` / `message:sent`), and setup uses the `openclaw` CLI to register crons and enable hooks. It's built specifically for OpenClaw and won't run on another platform without significant rework.
 
 **Can I sync history to GitHub?**
-Yes. After setup, ask the agent to help you connect to GitHub and it will handle everything — git identity, auth, remote configuration, and the initial push. Once connected, every batch commit is automatically pushed to your remote.
+Yes. After setup, ask the agent to help you connect to GitHub and it will handle everything — git identity, auth, remote configuration, and the initial push. Once a remote is configured, every future batch commit is pushed automatically.
 
 ## Workspace files
 
 | File                        | Purpose                                                                       |
 | --------------------------- | ----------------------------------------------------------------------------- |
-| `.agent-changelog.json` | Your tracked-files and git push configuration                                 |
+| `.agent-changelog.json` | Your tracked-files configuration                                              |
 | `.version-context`          | Temporary sender handoff between hooks (not committed)                        |
 | `pending_commits.jsonl`     | Pending attribution entries waiting for the next batch commit (not committed) |

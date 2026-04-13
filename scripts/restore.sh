@@ -27,7 +27,7 @@ if ! git cat-file -e "$COMMIT" 2>/dev/null; then
   exit 1
 fi
 
-if ! git show "$COMMIT" -- "$FILE" | grep -q "." 2>/dev/null; then
+if ! git diff-tree --no-commit-id -r --name-only "$COMMIT" | grep -qF "$FILE"; then
   echo "⚠️ \`$FILE\` was not changed in \`$COMMIT\`"
   exit 1
 fi
@@ -36,10 +36,12 @@ TARGET_SHORT=$(git rev-parse --short "$COMMIT")
 
 # Read sender identity from capture hook context
 USER="unknown"
+USER_ID="unknown"
 CHANNEL="unknown"
 CTX="$WORKSPACE/.version-context"
 if [ -f "$CTX" ] && command -v jq &>/dev/null; then
   USER=$(jq -r '.user // "unknown"' "$CTX" 2>/dev/null || echo "unknown")
+  USER_ID=$(jq -r '.userId // "unknown"' "$CTX" 2>/dev/null || echo "unknown")
   CHANNEL=$(jq -r '.channel // "unknown"' "$CTX" 2>/dev/null || echo "unknown")
 fi
 
@@ -48,11 +50,19 @@ git checkout "${COMMIT}^" -- "$FILE"
 git add "$FILE"
 
 # Log to pending so the next commit includes restore attribution
-ENTRY=$(printf '{"ts":%s,"user":"%s","userId":"%s","channel":"%s","action":"restore","file":"%s","from":"%s","reason":"%s","files":[]}' "$(date +%s000)" "$USER" "$USER" "$CHANNEL" "$FILE" "$TARGET_SHORT" "$REASON")
+ENTRY=$(jq -n \
+  --argjson ts "$(date +%s000)" \
+  --arg user "$USER" \
+  --arg userId "$USER_ID" \
+  --arg channel "$CHANNEL" \
+  --arg file "$FILE" \
+  --arg from "$TARGET_SHORT" \
+  --arg reason "$REASON" \
+  '{"ts":$ts,"user":$user,"userId":$userId,"channel":$channel,"action":"restore","file":$file,"from":$from,"reason":$reason,"files":[]}')
 printf '%s\n' "$ENTRY" >> "$WORKSPACE/pending_commits.jsonl"
 
 echo "📌 **Staged restore**"
 echo "\`$FILE\` → before \`$TARGET_SHORT\`"
-echo "_by $USER_"
+echo "_by ${USER}_"
 echo ""
 echo "Commit with \`/agent-changelog commit\`"

@@ -72,15 +72,16 @@ Use this only for explicit `/agent-changelog` invocations, and return stdout ver
 - `diff` -> `bash {baseDir}/scripts/diff.sh [commit] [commit2]`
 - `rollback` -> `bash {baseDir}/scripts/rollback.sh <commit> ["reason"]`
 - `restore` -> `bash {baseDir}/scripts/restore.sh <file> <commit> ["reason"]`
-- `commit` -> `bash {baseDir}/scripts/commit.sh --manual ["message"] [--summary "one-line semantic summary"]`
+- `commit` (user-requested) -> `bash {baseDir}/scripts/commit.sh --manual ["message"] [--summary "one-line semantic summary"]`
+- `commit` (cron-triggered) -> `bash {baseDir}/scripts/commit.sh [--summary "one-line semantic summary"]`
 
 ## Auto-Versioning Overview
 
 Two hooks capture and commit changes between turns and attribute them to the active user. Defaults can be overridden via `.agent-changelog.json`.
 
-Tracked by default: `AGENTS.md`, `SOUL.md`, `IDENTITY.md`, `USER.md`, `TOOLS.md`, `HEARTBEAT.md`, `BOOT.md`, `BOOTSTRAP.md`, `MEMORY.md`, `.gitignore`, `.agent-changelog.json`, `skills/`, `hooks/`.
+Tracked by default: `.` (entire workspace). Secrets and runtime files are excluded via the `.gitignore` that setup creates — note that if a `.gitignore` already exists in the workspace, setup leaves it untouched, so ensure it covers secrets before enabling tracking.
 
-To track a different set of files, create `<workspace>/.agent-changelog.json` with a `tracked` array listing exactly the files and folders you want versioned (this fully replaces the defaults):
+To track a specific subset instead, edit `<workspace>/.agent-changelog.json` with a `tracked` array (this fully replaces the default):
 ```json
 { "tracked": ["<file-or-folder>", "<file-or-folder>"] }
 ```
