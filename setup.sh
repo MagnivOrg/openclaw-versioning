@@ -176,7 +176,7 @@ build/
 GITIGNORE
   success "Created \`.gitignore\`"
 else
-  warn ".gitignore already exists — left untouched. Review it before pushing to a remote to make sure secrets are excluded."
+  warn ".gitignore already exists and was left untouched. Review it before pushing to a remote to make sure secrets are excluded."
 fi
 
 # ─── Seed workspace config ────────────────────────────────────────────
