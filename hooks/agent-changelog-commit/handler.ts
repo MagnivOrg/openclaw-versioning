@@ -54,8 +54,8 @@ const handler = async (event: any) => {
   }
 
   try {
-    // Detect unstaged changes against HEAD
-    const changed = run("git diff --name-only HEAD", workspace)
+    // Detect changes since the last git add (working tree vs index).
+    const changed = run("git diff --name-only", workspace)
       .split("\n")
       .filter(Boolean);
 
