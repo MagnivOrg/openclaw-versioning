@@ -1,7 +1,7 @@
 ---
 name: agent-changelog-capture
 description: "Captures sender identity before each agent turn for commit attribution"
-metadata: { "openclaw": { "emoji": "📸", "events": ["message:received"], "requires": { "bins": ["git"] } } }
+metadata: { "openclaw": { "emoji": "📸", "events": ["message:received"] } }
 ---
 
 # Agent Changelog — Capture

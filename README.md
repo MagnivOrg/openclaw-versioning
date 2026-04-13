@@ -93,6 +93,7 @@ A few things to be careful about:
 - **If your workspace already has a `.gitignore`**, setup leaves it untouched. Make sure it excludes anything sensitive before enabling tracking.
 - **If you're pushing to a remote**, audit your workspace for hardcoded secrets in tracked files (SOUL.md, AGENTS.md, etc.) before the first push.
 - **Narrow your tracking** if you're unsure. Edit `.agent-changelog.json` to list only the specific files you want versioned instead of `.`.
+- **Auto-push is on if a remote exists.** If a git remote is configured in your workspace, every batch commit will be pushed automatically. Remove the remote or don't connect to GitHub if you want local-only history.
 
 ## In one minute: how it behaves
 

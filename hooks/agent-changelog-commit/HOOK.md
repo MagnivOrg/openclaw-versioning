@@ -6,7 +6,7 @@ metadata: { "openclaw": { "emoji": "📝", "events": ["message:sent"], "requires
 
 # Agent Changelog — Commit
 
-After each outbound message, stages tracked workspace files and stages tracked workspace files and queues sender attribution in the commit message body.
+After each outbound message, stages tracked workspace files and queues sender attribution in the commit message body.
 
 Tracked files are read from `.agent-changelog.json` in the workspace, written by `setup.sh` on install.
 

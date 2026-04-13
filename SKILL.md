@@ -2,7 +2,7 @@
 name: agent-changelog
 description: Advanced handling for agent-changelog requests (history, diffs, restores, rollbacks, snapshots) using git and OpenClaw scripts with clear, user-focused summaries and outputs.
 user-invocable: true
-metadata: {"openclaw":{"requires":{"bins":["git"]}}}
+metadata: {"openclaw":{"requires":{"bins":["git","jq","node"],"env":["OPENCLAW_WORKSPACE","OPENCLAW_CONFIG"]}}}
 ---
 
 # Agent Changelog
@@ -88,7 +88,7 @@ To track a specific subset instead, edit `<workspace>/.agent-changelog.json` wit
 
 ## GitHub Onboarding (Setup Add-on)
 
-Use this flow after setup to help users connect the workspace to GitHub, without asking them to do extra prep work:
+Use this flow after setup to help users connect the workspace to GitHub. The user will need to authenticate (SSH key or HTTPS credential) — walk them through it step by step:
 
 1. **Account and intent.** Confirm they have a GitHub account and want this repo linked.
 2. **Git identity.** Ensure `user.name` and `user.email` are set for commits.
