@@ -46,7 +46,12 @@ openclaw gateway restart
 ```
 ![Status command output example](images/status.gif)
 
-Note: Remote configuration is handled by the setup installer when you opt in to remote push.
+**Optional — connect to GitHub:**
+After setup, the agent can walk you through linking the workspace to a GitHub repo. Just ask:
+```text
+/agent-changelog ok help me set up github
+```
+It will handle git identity, auth (SSH or HTTPS), remote configuration, and the initial push — no prep work needed on your end.
 
 ## Example usages
 
@@ -86,6 +91,14 @@ Edit this file to narrow or expand what gets tracked.
 - Every 10 minutes, queued entries are committed together with grouped attribution.
 
 This gives you low-noise, attributable history without manual git bookkeeping every turn.
+
+## FAQ
+
+**Does this work without OpenClaw?**
+No. The hooks rely on OpenClaw's event system (`message:received` / `message:sent`), and setup uses the `openclaw` CLI to register crons and enable hooks. It's built specifically for OpenClaw and won't run on another platform without significant rework.
+
+**Can I sync history to GitHub?**
+Yes. After setup, ask the agent to help you connect to GitHub and it will handle everything — git identity, auth, remote configuration, and the initial push. Once connected, every batch commit is automatically pushed to your remote.
 
 ## Workspace files
 
