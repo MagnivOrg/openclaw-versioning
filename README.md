@@ -19,7 +19,12 @@ Use it to answer questions like:
 
 Requirements: `git`, `jq`, Node.js
 
-1. Add this repo to your workspace `skills/` directory.
+1. Install the skill into your OpenClaw workspace:
+
+```bash
+npx agent-changelog
+```
+Defaults to `~/.openclaw/workspace` (or `OPENCLAW_WORKSPACE` if set).
 2. In your terminal, restart the gateway so the skill is picked up:
 
 ```bash

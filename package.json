@@ -1,0 +1,16 @@
+{
+  "name": "agent-changelog",
+  "version": "1.0.1",
+  "description": "Install the agent-changelog OpenClaw skill into your OpenClaw workspace.",
+  "bin": {
+    "agent-changelog": "bin/agent-changelog.js"
+  },
+  "files": [
+    "bin/",
+    "SKILL.md",
+    "setup.sh",
+    "hooks/",
+    "scripts/",
+    "README.md"
+  ]
+}
