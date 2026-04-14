@@ -25,6 +25,7 @@ Requirements: `git`, `jq`, Node.js
 npx agent-changelog
 ```
 Defaults to `~/.openclaw/workspace` (or `OPENCLAW_WORKSPACE` if set).
+
 2. In your terminal, restart the gateway so the skill is picked up:
 
 ```bash
