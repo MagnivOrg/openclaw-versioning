@@ -3,7 +3,6 @@ node_modules/
 
 # Compiled TypeScript output
 dist/
-*.js
 *.js.map
 
 # macOS
