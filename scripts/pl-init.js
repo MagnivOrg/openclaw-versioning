@@ -9,12 +9,16 @@ const { execSync } = require('child_process');
 const WORKSPACE = process.env.OPENCLAW_WORKSPACE || path.join(process.env.HOME, '.openclaw/workspace');
 const OPENCLAW_CONFIG = process.env.OPENCLAW_CONFIG || path.join(os.homedir(), '.openclaw', 'openclaw.json');
 const BASE_URL = 'https://api.promptlayer.com';
+const SNAPSHOT_PATH = '.promptlayer/snapshot.zip.b64';
 
 function loadOpenClawConfig() {
   try {
-    return JSON.parse(fs.readFileSync(OPENCLAW_CONFIG, 'utf8'));
-  } catch {
-    return {};
+    const raw = fs.readFileSync(OPENCLAW_CONFIG, 'utf8');
+    return JSON.parse(raw);
+  } catch (err) {
+    if (err && err.code === 'ENOENT') return {};
+    console.error(`OpenClaw config is invalid or unreadable: ${OPENCLAW_CONFIG}`);
+    process.exit(1);
   }
 }
 
@@ -31,6 +35,17 @@ function setSkillEntry(config, entry) {
   if (!config.skills) config.skills = {};
   if (!config.skills.entries) config.skills.entries = {};
   config.skills.entries['agent-changelog'] = entry;
+}
+
+function buildSnapshotBase64() {
+  const tmpDir = fs.mkdtempSync(path.join(os.tmpdir(), 'agent-changelog-'));
+  const zipPath = path.join(tmpDir, 'snapshot.zip');
+  try {
+    execSync(`git archive --format=zip -o ${JSON.stringify(zipPath)} HEAD`, { cwd: WORKSPACE });
+    return fs.readFileSync(zipPath).toString('base64');
+  } finally {
+    fs.rmSync(tmpDir, { recursive: true, force: true });
+  }
 }
 
 async function main() {
@@ -50,9 +65,11 @@ async function main() {
   const pl = skillEntry.promptlayer || {};
   const skillName = skillNameArg || pl.skillName || '';
   const provider = providerArg || pl.provider || 'openclaw';
-  const apiKeyValue = apiKeyArg || skillEntry.apiKey?.value || '';
+  const existingApiKey = skillEntry.apiKey?.value || '';
+  const apiKeyValue = apiKeyArg || existingApiKey;
 
   if (pl.collectionId) {
+    const nextApiKey = apiKeyValue ? { value: apiKeyValue } : skillEntry.apiKey;
     const updatedSkillEntry = {
       ...skillEntry,
       sync: { ...(skillEntry.sync || {}), provider: 'promptlayer' },
@@ -62,13 +79,13 @@ async function main() {
         collectionId: pl.collectionId,
         provider,
       },
-      apiKey: {
-        provider: 'promptlayer',
-        value: apiKeyValue,
-      },
     };
+    if (nextApiKey) updatedSkillEntry.apiKey = nextApiKey;
     setSkillEntry(openclawConfig, updatedSkillEntry);
     saveOpenClawConfig(openclawConfig);
+    if (!apiKeyValue) {
+      console.error('Missing API key. Save it in OpenClaw config.');
+    }
     console.log(`Already connected: ${pl.collectionId}`);
     return;
   }
@@ -83,26 +100,16 @@ async function main() {
     process.exit(1);
   }
 
-  const fileList = execSync('git ls-files', { cwd: WORKSPACE })
-    .toString().trim().split('\n').filter(Boolean);
-
-  const files = fileList.flatMap(relativePath => {
-    try {
-      const content = fs.readFileSync(path.join(WORKSPACE, relativePath), 'utf8');
-      return [{ path: relativePath, content }];
-    } catch {
-      return [];
-    }
-  });
+  const snapshotBase64 = buildSnapshotBase64();
 
   const res = await fetch(`${BASE_URL}/api/public/v2/skill-collections`, {
     method: 'POST',
-      headers: { 'X-API-KEY': apiKeyValue, 'Content-Type': 'application/json' },
+    headers: { 'X-API-KEY': apiKeyValue, 'Content-Type': 'application/json' },
     body: JSON.stringify({
       name: skillName,
       provider,
       commit_message: 'Initial snapshot — agent versioning setup',
-      files,
+      files: [{ path: SNAPSHOT_PATH, content: snapshotBase64 }],
     }),
   });
 
@@ -123,11 +130,8 @@ async function main() {
       collectionId: skill_collection.id,
       provider,
     },
-    apiKey: {
-      provider: 'promptlayer',
-      value: apiKeyValue,
-    },
   };
+  updatedSkillEntry.apiKey = { value: apiKeyValue };
   setSkillEntry(openclawConfig, updatedSkillEntry);
   saveOpenClawConfig(openclawConfig);
 

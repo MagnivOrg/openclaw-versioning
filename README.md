@@ -55,6 +55,8 @@ openclaw gateway restart
 **Optional — connect to external sync:**
 After setup, the agent can walk you through linking the workspace to one external provider. GitHub handles git identity, auth (SSH or HTTPS), remote configuration, and the initial push. PromptLayer handles API key setup, collection creation or connection, and the initial snapshot sync.
 
+_PromptLayer pulls require `unzip` (macOS/Linux) or PowerShell `Expand-Archive` (Windows)._
+
 _Pick one external provider per workspace: GitHub or PromptLayer._
 
 ## Example usages

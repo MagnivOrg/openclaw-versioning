@@ -9,17 +9,32 @@ const { execSync } = require('child_process');
 const WORKSPACE = process.env.OPENCLAW_WORKSPACE || path.join(process.env.HOME, '.openclaw/workspace');
 const OPENCLAW_CONFIG = process.env.OPENCLAW_CONFIG || path.join(os.homedir(), '.openclaw', 'openclaw.json');
 const BASE_URL = 'https://api.promptlayer.com';
+const SNAPSHOT_PATH = '.promptlayer/snapshot.zip.b64';
 
 function loadOpenClawConfig() {
   try {
-    return JSON.parse(fs.readFileSync(OPENCLAW_CONFIG, 'utf8'));
-  } catch {
-    return {};
+    const raw = fs.readFileSync(OPENCLAW_CONFIG, 'utf8');
+    return JSON.parse(raw);
+  } catch (err) {
+    if (err && err.code === 'ENOENT') return {};
+    console.error(`OpenClaw config is invalid or unreadable: ${OPENCLAW_CONFIG}`);
+    process.exit(1);
   }
 }
 
 function getSkillEntry(config) {
   return config?.skills?.entries?.['agent-changelog'] || {};
+}
+
+function buildSnapshotBase64() {
+  const tmpDir = fs.mkdtempSync(path.join(os.tmpdir(), 'agent-changelog-'));
+  const zipPath = path.join(tmpDir, 'snapshot.zip');
+  try {
+    execSync(`git archive --format=zip -o ${JSON.stringify(zipPath)} HEAD`, { cwd: WORKSPACE });
+    return fs.readFileSync(zipPath).toString('base64');
+  } finally {
+    fs.rmSync(tmpDir, { recursive: true, force: true });
+  }
 }
 
 async function main() {
@@ -49,25 +64,11 @@ async function main() {
     commitMessage = execSync('git log -1 --pretty=%s', { cwd: WORKSPACE }).toString().trim();
   }
 
-  const file_updates = [];
-  const deletes = [];
-
-  for (const line of statusLines) {
-    const [status, filePath] = line.split('\t');
-    if (status.startsWith('D')) {
-      deletes.push(filePath);
-    } else {
-      try {
-        const content = fs.readFileSync(path.join(WORKSPACE, filePath), 'utf8');
-        file_updates.push({ path: filePath, content });
-      } catch {
-        // skip binary or unreadable files
-      }
-    }
-  }
-
-  const body = { commit_message: commitMessage, file_updates };
-  if (deletes.length) body.deletes = deletes;
+  const snapshotBase64 = buildSnapshotBase64();
+  const body = {
+    commit_message: commitMessage,
+    file_updates: [{ path: SNAPSHOT_PATH, content: snapshotBase64 }],
+  };
   if (releaseLabel) body.release_label = releaseLabel;
 
   const res = await fetch(
