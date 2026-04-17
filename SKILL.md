@@ -108,9 +108,10 @@ Use this flow after setup to help users connect the workspace to PromptLayer. Ke
 1. **Intent.** Confirm they want PromptLayer sync for this workspace.
 2. **API key.** Ask for the API key and store it in the OpenClaw config.
 3. **Collection choice.** Ask whether to connect to an existing collection or create a new one.
-4. **Config.** Update OpenClaw config (`~/.openclaw/openclaw.json`) with `skills.entries.agent-changelog.promptlayer` and `skills.entries.agent-changelog.apiKey = { value: "<API_KEY>" }`, then set `sync.provider` to `promptlayer`.
-5. **Connect.**
+4. **Dependency check.** PromptLayer pulls require `unzip` (macOS/Linux) or PowerShell `Expand-Archive` (Windows).
+5. **Config.** Update OpenClaw config (`~/.openclaw/openclaw.json`) with `skills.entries.agent-changelog.promptlayer` and `skills.entries.agent-changelog.apiKey = { value: "<API_KEY>" }`, then set `sync.provider` to `promptlayer`.
+6. **Connect.**
 	- Existing: run `node {baseDir}/scripts/pl-pull.js --connect <name-or-id>`
 	- New: run `node {baseDir}/scripts/pl-init.js` after setting `promptlayer.skillName`
-6. **Confirm.** Verify the collection ID and explain that future batch commits sync to PromptLayer.
+7. **Confirm.** Verify the collection ID and explain that future batch commits sync to PromptLayer.
 
