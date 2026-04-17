@@ -169,7 +169,11 @@ echo "_by ${USERS}_"
 [ -n "$SUMMARY" ] && echo "$SUMMARY"
 
 # ─── Sync provider ────────────────────────────────────────────────────
-SYNC_PROVIDER=$(jq -r '.sync.provider // "local"' "$WORKSPACE/.agent-changelog.json" 2>/dev/null | tr '[:upper:]' '[:lower:]')
+OPENCLAW_CFG="${OPENCLAW_CONFIG:-$HOME/.openclaw/openclaw.json}"
+SYNC_PROVIDER="local"
+if [ -f "$OPENCLAW_CFG" ] && command -v jq &>/dev/null; then
+  SYNC_PROVIDER=$(jq -r '.skills.entries["agent-changelog"].sync.provider // "local"' "$OPENCLAW_CFG" 2>/dev/null | tr '[:upper:]' '[:lower:]')
+fi
 
 if [ "$SYNC_PROVIDER" = "github" ]; then
   GIT_REMOTE=$(git remote 2>/dev/null | head -1)
@@ -182,7 +186,7 @@ if [ "$SYNC_PROVIDER" = "github" ]; then
   fi
 elif [ "$SYNC_PROVIDER" = "promptlayer" ]; then
   if command -v node &>/dev/null; then
-    _pl_enabled=$(jq -r '.promptlayer.enabled // false' "$WORKSPACE/.agent-changelog.json" 2>/dev/null || echo "false")
+    _pl_enabled=$(jq -r '.skills.entries["agent-changelog"].promptlayer.enabled // false' "$OPENCLAW_CFG" 2>/dev/null || echo "false")
     if [ "$_pl_enabled" = "true" ]; then
       node "$SCRIPT_DIR/pl-push.js" --message "$SUBJECT" 2>&1 || true
     fi

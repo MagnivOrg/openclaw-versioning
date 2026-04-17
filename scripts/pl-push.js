@@ -2,12 +2,25 @@
 'use strict';
 
 const fs = require('fs');
+const os = require('os');
 const path = require('path');
 const { execSync } = require('child_process');
 
 const WORKSPACE = process.env.OPENCLAW_WORKSPACE || path.join(process.env.HOME, '.openclaw/workspace');
-const CONFIG_PATH = path.join(WORKSPACE, '.agent-changelog.json');
+const OPENCLAW_CONFIG = process.env.OPENCLAW_CONFIG || path.join(os.homedir(), '.openclaw', 'openclaw.json');
 const BASE_URL = 'https://api.promptlayer.com';
+
+function loadOpenClawConfig() {
+  try {
+    return JSON.parse(fs.readFileSync(OPENCLAW_CONFIG, 'utf8'));
+  } catch {
+    return {};
+  }
+}
+
+function getSkillEntry(config) {
+  return config?.skills?.entries?.['agent-changelog'] || {};
+}
 
 async function main() {
   const args = process.argv.slice(2);
@@ -18,13 +31,14 @@ async function main() {
     if (args[i] === '--label' && args[i + 1]) releaseLabel = args[++i];
   }
 
-  const config = JSON.parse(fs.readFileSync(CONFIG_PATH, 'utf8'));
-  const pl = config.promptlayer;
+  const openclawConfig = loadOpenClawConfig();
+  const skillEntry = getSkillEntry(openclawConfig);
+  const pl = skillEntry.promptlayer || {};
 
   if (!pl?.enabled || !pl.collectionId) return;
 
-  const apiKey = process.env[pl.apiKeyEnvVar || 'PROMPTLAYER_API_KEY'];
-  if (!apiKey) return;
+  const apiKeyValue = skillEntry.apiKey?.value || '';
+  if (!apiKeyValue) return;
 
   const statusLines = execSync('git diff-tree --no-commit-id -r --name-status HEAD', { cwd: WORKSPACE })
     .toString().trim().split('\n').filter(Boolean);
@@ -60,7 +74,7 @@ async function main() {
     `${BASE_URL}/api/public/v2/skill-collections/${pl.collectionId}/versions`,
     {
       method: 'POST',
-      headers: { 'X-API-KEY': apiKey, 'Content-Type': 'application/json' },
+      headers: { 'X-API-KEY': apiKeyValue, 'Content-Type': 'application/json' },
       body: JSON.stringify(body),
     }
   );

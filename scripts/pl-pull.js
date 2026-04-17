@@ -2,12 +2,36 @@
 'use strict';
 
 const fs = require('fs');
+const os = require('os');
 const path = require('path');
 const { execSync } = require('child_process');
 
 const WORKSPACE = process.env.OPENCLAW_WORKSPACE || path.join(process.env.HOME, '.openclaw/workspace');
-const CONFIG_PATH = path.join(WORKSPACE, '.agent-changelog.json');
+const OPENCLAW_CONFIG = process.env.OPENCLAW_CONFIG || path.join(os.homedir(), '.openclaw', 'openclaw.json');
 const BASE_URL = 'https://api.promptlayer.com';
+
+function loadOpenClawConfig() {
+  try {
+    return JSON.parse(fs.readFileSync(OPENCLAW_CONFIG, 'utf8'));
+  } catch {
+    return {};
+  }
+}
+
+function saveOpenClawConfig(config) {
+  fs.mkdirSync(path.dirname(OPENCLAW_CONFIG), { recursive: true });
+  fs.writeFileSync(OPENCLAW_CONFIG, JSON.stringify(config, null, 2) + '\n');
+}
+
+function getSkillEntry(config) {
+  return config?.skills?.entries?.['agent-changelog'] || {};
+}
+
+function setSkillEntry(config, entry) {
+  if (!config.skills) config.skills = {};
+  if (!config.skills.entries) config.skills.entries = {};
+  config.skills.entries['agent-changelog'] = entry;
+}
 
 async function main() {
   const args = process.argv.slice(2);
@@ -23,12 +47,13 @@ async function main() {
     if (args[i] === '--reason' && args[i + 1]) reason = args[++i];
   }
 
-  const config = JSON.parse(fs.readFileSync(CONFIG_PATH, 'utf8'));
-  const pl = config.promptlayer || {};
-  const apiKey = process.env[pl?.apiKeyEnvVar || 'PROMPTLAYER_API_KEY'];
+  const openclawConfig = loadOpenClawConfig();
+  const skillEntry = getSkillEntry(openclawConfig);
+  const pl = skillEntry.promptlayer || {};
+  const apiKeyValue = skillEntry.apiKey?.value || '';
 
-  if (!apiKey) {
-    console.error(`Missing env var: ${pl?.apiKeyEnvVar || 'PROMPTLAYER_API_KEY'}`);
+  if (!apiKeyValue) {
+    console.error('Missing API key. Save it in OpenClaw config.');
     process.exit(1);
   }
 
@@ -45,7 +70,7 @@ async function main() {
 
   const res = await fetch(
     `${BASE_URL}/api/public/v2/skill-collections/${encodeURIComponent(identifier)}${query}`,
-    { headers: { 'X-API-KEY': apiKey } }
+    { headers: { 'X-API-KEY': apiKeyValue } }
   );
 
   if (!res.ok) {
@@ -67,16 +92,22 @@ async function main() {
 
   if (connectIdentifier) {
     // Setup mode: update config, skip pending_commits
-    config.promptlayer = {
-      ...(config.promptlayer || {}),
-      enabled: true,
-      skillName: skill_collection.name,
-      collectionId: skill_collection.id,
-      provider: skill_collection.provider || 'openclaw',
-      apiKeyEnvVar: pl?.apiKeyEnvVar || 'PROMPTLAYER_API_KEY',
+    const updatedSkillEntry = {
+      ...skillEntry,
+      sync: { ...(skillEntry.sync || {}), provider: 'promptlayer' },
+      promptlayer: {
+        enabled: true,
+        skillName: skill_collection.name,
+        collectionId: skill_collection.id,
+        provider: skill_collection.provider || 'openclaw',
+      },
+      apiKey: {
+        provider: 'promptlayer',
+        value: apiKeyValue,
+      },
     };
-    config.sync = { ...(config.sync || {}), provider: 'promptlayer' };
-    fs.writeFileSync(CONFIG_PATH, JSON.stringify(config, null, 2) + '\n');
+    setSkillEntry(openclawConfig, updatedSkillEntry);
+    saveOpenClawConfig(openclawConfig);
     console.log(`✅ Connected "${skill_collection.name}" (${skill_collection.id}) — pulled ${fileList.length} files from v${versionNumber}`);
     return;
   }

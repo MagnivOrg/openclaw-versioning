@@ -82,15 +82,13 @@ After setup, `.agent-changelog.json` is created (if missing) and defaults to tra
 {
   "tracked": [
     "."
-  ],
-  "sync": {
-    "provider": "local"
-  }
+  ]
 }
 ```
 
 Edit this file to narrow or expand what gets tracked.
-The setup flow defaults to local-only sync; the GitHub or PromptLayer onboarding updates `sync.provider`.
+
+External sync settings (provider choice and PromptLayer collection info) are stored in your OpenClaw config at `~/.openclaw/openclaw.json` (or `OPENCLAW_CONFIG`). The PromptLayer API key is stored in that OpenClaw config (outside the workspace).
 
 ## A note on secrets
 
@@ -101,7 +99,6 @@ A few things to be careful about:
 - **If your workspace already has a `.gitignore`**, setup leaves it untouched. Make sure it excludes anything sensitive before enabling tracking.
 - **If you're pushing to a remote**, audit your workspace for hardcoded secrets in tracked files (SOUL.md, AGENTS.md, etc.) before the first push.
 - **Narrow your tracking** if you're unsure. Edit `.agent-changelog.json` to list only the specific files you want versioned instead of `.`.
-- **Auto-sync works with either external provider.** GitHub pushes to your remote when configured, and PromptLayer publishes a version after each batch commit. Pick local-only if you want history to stay on disk.
 
 ## In one minute: how it behaves
 
@@ -115,6 +112,12 @@ This gives you low-noise, attributable history without manual git bookkeeping ev
 
 **Does this work without OpenClaw?**
 No. The hooks rely on OpenClaw's event system (`message:received` / `message:sent`), and setup uses the `openclaw` CLI to register crons and enable hooks. It's built specifically for OpenClaw and won't run on another platform without significant rework.
+
+**Which external systems can I connect?**
+GitHub or PromptLayer. Pick one per workspace. Auto-sync works with either provider: GitHub pushes to your remote when configured, and PromptLayer publishes a version after each batch commit. Provider configuration details are stored in your OpenClaw config (not in the workspace).
+
+**How do you handle secrets and sensitive data?**
+PromptLayer API keys are stored only in your local OpenClaw config and are never written to `.agent-changelog.json` or tracked files. Setup creates a `.gitignore` with common secret patterns, but you should still review your workspace and tracked files before syncing to any external system.
 
 ## Workspace files
 

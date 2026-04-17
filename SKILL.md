@@ -106,9 +106,9 @@ Use this flow after setup to help users connect the workspace to GitHub. The use
 Use this flow after setup to help users connect the workspace to PromptLayer. Keep it conversational like the GitHub flow and ensure they pick PromptLayer (not both).
 
 1. **Intent.** Confirm they want PromptLayer sync for this workspace.
-2. **API key.** Ask for the API key and whether to save `PROMPTLAYER_API_KEY` to their shell profile.
+2. **API key.** Ask for the API key and store it in the OpenClaw config.
 3. **Collection choice.** Ask whether to connect to an existing collection or create a new one.
-4. **Config.** Update `.agent-changelog.json` with a `promptlayer` block and set `sync.provider` to `promptlayer`.
+4. **Config.** Update OpenClaw config (`~/.openclaw/openclaw.json`) with `skills.entries.agent-changelog.promptlayer` and `skills.entries.agent-changelog.apiKey = { value: "<API_KEY>" }`, then set `sync.provider` to `promptlayer`.
 5. **Connect.**
 	- Existing: run `node {baseDir}/scripts/pl-pull.js --connect <name-or-id>`
 	- New: run `node {baseDir}/scripts/pl-init.js` after setting `promptlayer.skillName`
