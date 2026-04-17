@@ -38,10 +38,10 @@ Use this skill when the user asks about:
 	- Prefer `restore` for single-file fixes; use `rollback` only when the user wants to revert everything.
 	- If the target commit is ambiguous, ask a clarification question.
 
-5. **Guide GitHub onboarding for setup.**
-	- After `setup`, proactively ask: "ok do you want help with github?"
-	- If yes, walk them through GitHub onboarding with no extra setup steps required on their side.
-	- Confirm account status, git identity, auth method, and remote configuration.
+5. **Guide sync onboarding after setup.**
+	- After `setup`, proactively ask: "ok want help with github or promptlayer? (pick one)"
+	- If yes, walk them through the chosen provider with no extra setup steps required on their side.
+	- Confirm account status, credentials, and configuration for the selected provider.
 
 ## Output Style
 
@@ -57,7 +57,7 @@ Use this skill when the user asks about:
 
 - **Casual history or diff:** use a small git window (last 5-10 commits) and include stat output.
 - **Slash commands:** use the scripts in `setup.sh` and `scripts/` with the user-provided arguments.
-- **Setup:** run the setup script, then ask "ok do you want help with github?" and proceed if they confirm.
+- **Setup:** run the setup script, then ask "ok want help with github or promptlayer?" and proceed if they confirm.
 - **Restore or rollback:** locate the commit via `log`, then perform the change after showing what will be modified.
 - **Semantic summary:** before every commit, run a quick diff and generate a sparse one-line summary of what changed and why (e.g. "added rate-limit rule to AGENTS.md, updated memory skill"). Always pass it via `--summary` and always include it in any history output presented to the user.
 - **Log output:** `log.sh` outputs raw structured data — present it conversationally based on what the user asked. Don't dump raw script output. Format each entry using the `│`-prefixed box style (same as status output), one entry per block.
@@ -67,7 +67,7 @@ Use this skill when the user asks about:
 Use this only for explicit `/agent-changelog` invocations, and return stdout verbatim.
 
 - `setup` -> `bash {baseDir}/setup.sh`
-- `setup` follow-up -> GitHub onboarding guidance
+- `setup` follow-up -> Sync onboarding guidance (GitHub or PromptLayer)
 - `status` -> `bash {baseDir}/scripts/status.sh`
 - `log` -> `bash {baseDir}/scripts/log.sh [count]`
 - `diff` -> `bash {baseDir}/scripts/diff.sh [commit] [commit2]`
@@ -100,4 +100,17 @@ Use this flow after setup to help users connect the workspace to GitHub. The use
 3. **Auth method.** Offer SSH or HTTPS; proceed with their preference.
 4. **Remote and verify.** Ensure an `origin` remote exists and verify access.
 5. **Next action.** Create or select the GitHub repo, then push or fetch as needed.
+
+## PromptLayer Onboarding (Setup Add-on)
+
+Use this flow after setup to help users connect the workspace to PromptLayer. Keep it conversational like the GitHub flow and ensure they pick PromptLayer (not both).
+
+1. **Intent.** Confirm they want PromptLayer sync for this workspace.
+2. **API key.** Ask for the API key and whether to save `PROMPTLAYER_API_KEY` to their shell profile.
+3. **Collection choice.** Ask whether to connect to an existing collection or create a new one.
+4. **Config.** Update `.agent-changelog.json` with a `promptlayer` block and set `sync.provider` to `promptlayer`.
+5. **Connect.**
+	- Existing: run `node {baseDir}/scripts/pl-pull.js --connect <name-or-id>`
+	- New: run `node {baseDir}/scripts/pl-init.js` after setting `promptlayer.skillName`
+6. **Confirm.** Verify the collection ID and explain that future batch commits sync to PromptLayer.
 

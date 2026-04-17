@@ -168,21 +168,23 @@ echo "$SUBJECT"
 echo "_by ${USERS}_"
 [ -n "$SUMMARY" ] && echo "$SUMMARY"
 
-# ─── Push if remote is configured ────────────────────────────────────
-GIT_REMOTE=$(git remote 2>/dev/null | head -1)
+# ─── Sync provider ────────────────────────────────────────────────────
+SYNC_PROVIDER=$(jq -r '.sync.provider // "local"' "$WORKSPACE/.agent-changelog.json" 2>/dev/null | tr '[:upper:]' '[:lower:]')
 
-if [ -n "$GIT_REMOTE" ]; then
-  if git push "$GIT_REMOTE" 2>/dev/null; then
-    echo "↑ Pushed to \`$GIT_REMOTE\`"
-  else
-    echo "⚠️ Push to \`$GIT_REMOTE\` failed"
+if [ "$SYNC_PROVIDER" = "github" ]; then
+  GIT_REMOTE=$(git remote 2>/dev/null | head -1)
+  if [ -n "$GIT_REMOTE" ]; then
+    if git push "$GIT_REMOTE" 2>/dev/null; then
+      echo "↑ Pushed to \`$GIT_REMOTE\`"
+    else
+      echo "⚠️ Push to \`$GIT_REMOTE\` failed"
+    fi
   fi
-fi
-
-# ─── Sync to PromptLayer ──────────────────────────────────────────────
-if command -v node &>/dev/null; then
-  _pl_enabled=$(jq -r '.promptlayer.enabled // false' "$WORKSPACE/.agent-changelog.json" 2>/dev/null || echo "false")
-  if [ "$_pl_enabled" = "true" ]; then
-    node "$SCRIPT_DIR/pl-push.js" --message "$SUBJECT" 2>&1 || true
+elif [ "$SYNC_PROVIDER" = "promptlayer" ]; then
+  if command -v node &>/dev/null; then
+    _pl_enabled=$(jq -r '.promptlayer.enabled // false' "$WORKSPACE/.agent-changelog.json" 2>/dev/null || echo "false")
+    if [ "$_pl_enabled" = "true" ]; then
+      node "$SCRIPT_DIR/pl-push.js" --message "$SUBJECT" 2>&1 || true
+    fi
   fi
 fi

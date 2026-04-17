@@ -61,6 +61,7 @@ async function main() {
   const { skill_collection } = await res.json();
 
   config.promptlayer.collectionId = skill_collection.id;
+  config.sync = { ...(config.sync || {}), provider: 'promptlayer' };
   fs.writeFileSync(CONFIG_PATH, JSON.stringify(config, null, 2) + '\n');
 
   console.log(`✅ Collection "${skill_collection.name}" created (${skill_collection.id})`);

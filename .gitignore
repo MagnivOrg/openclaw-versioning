@@ -5,6 +5,9 @@ node_modules/
 dist/
 *.js.map
 
+# Generated CLI output
+bin/
+
 # macOS
 .DS_Store
 *.DS_Store

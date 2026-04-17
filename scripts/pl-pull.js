@@ -24,7 +24,7 @@ async function main() {
   }
 
   const config = JSON.parse(fs.readFileSync(CONFIG_PATH, 'utf8'));
-  const pl = config.promptlayer;
+  const pl = config.promptlayer || {};
   const apiKey = process.env[pl?.apiKeyEnvVar || 'PROMPTLAYER_API_KEY'];
 
   if (!apiKey) {
@@ -68,13 +68,14 @@ async function main() {
   if (connectIdentifier) {
     // Setup mode: update config, skip pending_commits
     config.promptlayer = {
-      ...config.promptlayer,
+      ...(config.promptlayer || {}),
       enabled: true,
       skillName: skill_collection.name,
       collectionId: skill_collection.id,
       provider: skill_collection.provider || 'openclaw',
       apiKeyEnvVar: pl?.apiKeyEnvVar || 'PROMPTLAYER_API_KEY',
     };
+    config.sync = { ...(config.sync || {}), provider: 'promptlayer' };
     fs.writeFileSync(CONFIG_PATH, JSON.stringify(config, null, 2) + '\n');
     console.log(`✅ Connected "${skill_collection.name}" (${skill_collection.id}) — pulled ${fileList.length} files from v${versionNumber}`);
     return;

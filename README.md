@@ -13,7 +13,7 @@ Use it to answer questions like:
 - Automatic capture of tracked file changes between turns
 - Batched git commits every 10 minutes with per-sender attribution
 - Chat/CLI commands for status, log, diff, rollback, and restore
-- Optional push to your remote after each batched commit
+- Optional external sync after each batched commit (GitHub push or PromptLayer version)
 
 ## Quick start
 
@@ -52,12 +52,10 @@ openclaw gateway restart
 ```
 ![Status command output example](images/status.gif)
 
-**Optional — connect to GitHub:**
-After setup, the agent can walk you through linking the workspace to a GitHub repo. Just ask:
-```text
-/agent-changelog ok help me set up github
-```
-It will handle git identity, auth (SSH or HTTPS), remote configuration, and the initial push — no prep work needed on your end.
+**Optional — connect to external sync:**
+After setup, the agent can walk you through linking the workspace to one external provider. GitHub handles git identity, auth (SSH or HTTPS), remote configuration, and the initial push. PromptLayer handles API key setup, collection creation or connection, and the initial snapshot sync.
+
+_Pick one external provider per workspace: GitHub or PromptLayer._
 
 ## Example usages
 
@@ -84,11 +82,15 @@ After setup, `.agent-changelog.json` is created (if missing) and defaults to tra
 {
   "tracked": [
     "."
-  ]
+  ],
+  "sync": {
+    "provider": "local"
+  }
 }
 ```
 
 Edit this file to narrow or expand what gets tracked.
+The setup flow defaults to local-only sync; the GitHub or PromptLayer onboarding updates `sync.provider`.
 
 ## A note on secrets
 
@@ -99,7 +101,7 @@ A few things to be careful about:
 - **If your workspace already has a `.gitignore`**, setup leaves it untouched. Make sure it excludes anything sensitive before enabling tracking.
 - **If you're pushing to a remote**, audit your workspace for hardcoded secrets in tracked files (SOUL.md, AGENTS.md, etc.) before the first push.
 - **Narrow your tracking** if you're unsure. Edit `.agent-changelog.json` to list only the specific files you want versioned instead of `.`.
-- **Auto-push is on if a remote exists.** If a git remote is configured in your workspace, every batch commit will be pushed automatically. Remove the remote or don't connect to GitHub if you want local-only history.
+- **Auto-sync works with either external provider.** GitHub pushes to your remote when configured, and PromptLayer publishes a version after each batch commit. Pick local-only if you want history to stay on disk.
 
 ## In one minute: how it behaves
 
@@ -113,9 +115,6 @@ This gives you low-noise, attributable history without manual git bookkeeping ev
 
 **Does this work without OpenClaw?**
 No. The hooks rely on OpenClaw's event system (`message:received` / `message:sent`), and setup uses the `openclaw` CLI to register crons and enable hooks. It's built specifically for OpenClaw and won't run on another platform without significant rework.
-
-**Can I sync history to GitHub?**
-Yes. After setup, ask the agent to help you connect to GitHub and it will handle everything — git identity, auth, remote configuration, and the initial push. Once a remote is configured, every future batch commit is pushed automatically.
 
 ## Workspace files
 
