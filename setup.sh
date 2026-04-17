@@ -196,6 +196,107 @@ else
   success "\`.agent-changelog.json\` already exists — leaving as-is"
 fi
 
+# ─── PromptLayer sync (optional) ──────────────────────────────────────
+header "🔗 PromptLayer sync (optional)"
+
+PL_ENABLED=false
+
+_pl_configured=$(jq -r '.promptlayer.enabled // false' "$WORKSPACE_CFG" 2>/dev/null || echo "false")
+_pl_collection=$(jq -r '.promptlayer.collectionId // ""' "$WORKSPACE_CFG" 2>/dev/null || echo "")
+
+if [ "$_pl_configured" = "true" ] && [ -n "$_pl_collection" ] && [ "$_pl_collection" != "null" ]; then
+  PL_ENABLED=true
+  success "Already connected (collection \`$_pl_collection\`)"
+elif [ "$_pl_configured" = "true" ]; then
+  PL_ENABLED=true
+  warn "Configured but not yet connected — will initialize after snapshot"
+elif [ ! -t 0 ]; then
+  warn "Non-interactive shell — skipping. Add a \`promptlayer\` block to \`.agent-changelog.json\` to enable."
+else
+  echo "Sync your workspace to a PromptLayer skill collection."
+  echo "Every commit pushes a versioned snapshot."
+  echo ""
+  read -rp "Enable PromptLayer sync? [y/N] " _pl_choice
+  echo ""
+
+  if [[ "${_pl_choice,,}" == "y" ]]; then
+    read -rsp "PromptLayer API key: " _pl_key
+    echo ""
+    echo ""
+
+    if [[ "$SHELL" == */zsh ]] || [ -n "${ZSH_VERSION:-}" ]; then
+      _profile="$HOME/.zshrc"
+    elif [ -f "$HOME/.bash_profile" ]; then
+      _profile="$HOME/.bash_profile"
+    else
+      _profile="$HOME/.bashrc"
+    fi
+
+    read -rp "Save PROMPTLAYER_API_KEY to \`$_profile\`? [Y/n] " _pl_persist
+    echo ""
+    if [[ "${_pl_persist,,}" != "n" ]]; then
+      if ! grep -qF "PROMPTLAYER_API_KEY" "$_profile" 2>/dev/null; then
+        echo "export PROMPTLAYER_API_KEY=\"$_pl_key\"" >> "$_profile"
+        success "Saved to \`$_profile\`"
+      else
+        warn "PROMPTLAYER_API_KEY already in \`$_profile\` — leaving as-is"
+      fi
+    fi
+    export PROMPTLAYER_API_KEY="$_pl_key"
+
+    read -rp "New collection or connect to existing? [new/existing] " _pl_mode
+    echo ""
+
+    if [[ "${_pl_mode,,}" == "existing" ]]; then
+      read -rp "Collection name or ID: " _pl_identifier
+      echo ""
+
+      TMP=$(mktemp)
+      jq --arg envVar "PROMPTLAYER_API_KEY" \
+         '.promptlayer = {
+           "enabled": true,
+           "skillName": "",
+           "collectionId": null,
+           "provider": "openclaw",
+           "apiKeyEnvVar": $envVar
+         }' "$WORKSPACE_CFG" > "$TMP" && mv "$TMP" "$WORKSPACE_CFG"
+
+      if command -v node &>/dev/null; then
+        if node "$SCRIPT_DIR/scripts/pl-pull.js" --connect "$_pl_identifier"; then
+          PL_ENABLED=true
+        else
+          warn "Could not connect to '$_pl_identifier' — check the name or ID and re-run setup."
+        fi
+      else
+        warn "node not found — install Node.js 18+, then run: node $SCRIPT_DIR/scripts/pl-pull.js --connect '$_pl_identifier'"
+      fi
+    else
+      _default_name="$(basename "$WORKSPACE")"
+      read -rp "Skill collection name [$_default_name]: " _pl_name
+      _pl_name="${_pl_name:-$_default_name}"
+      echo ""
+
+      TMP=$(mktemp)
+      jq --arg name "$_pl_name" \
+         --arg envVar "PROMPTLAYER_API_KEY" \
+         --arg provider "openclaw" \
+         '.promptlayer = {
+           "enabled": true,
+           "skillName": $name,
+           "collectionId": null,
+           "provider": $provider,
+           "apiKeyEnvVar": $envVar
+         }' "$WORKSPACE_CFG" > "$TMP" && mv "$TMP" "$WORKSPACE_CFG"
+
+      PL_ENABLED=true
+      success "PromptLayer configured — collection will be created after snapshot"
+    fi
+  else
+    echo "_Skipped — add a \`promptlayer\` block to \`.agent-changelog.json\` to enable later._"
+    echo ""
+  fi
+fi
+
 # ─── First snapshot ───────────────────────────────────────────────────
 header "📸 First snapshot"
 
@@ -210,6 +311,23 @@ if ! git diff --cached --quiet 2>/dev/null; then
   success "Snapshot \`$HASH\` created"
 else
   echo "_No new files to commit_"
+fi
+
+# ─── Initialize PromptLayer collection ───────────────────────────────
+if [ "$PL_ENABLED" = "true" ]; then
+  _pl_collection=$(jq -r '.promptlayer.collectionId // ""' "$WORKSPACE_CFG" 2>/dev/null || echo "")
+  if [ -z "$_pl_collection" ] || [ "$_pl_collection" = "null" ]; then
+    header "🔗 Connecting to PromptLayer"
+    if command -v node &>/dev/null; then
+      if node "$SCRIPT_DIR/scripts/pl-init.js"; then
+        : # pl-init.js prints its own success line
+      else
+        warn "PromptLayer init failed — check your API key, then run: node $SCRIPT_DIR/scripts/pl-init.js"
+      fi
+    else
+      warn "node not found — install Node.js 18+, then run: node $SCRIPT_DIR/scripts/pl-init.js"
+    fi
+  fi
 fi
 
 # ─── Done ─────────────────────────────────────────────────────────────

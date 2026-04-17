@@ -1,6 +1,7 @@
 #!/bin/bash
 set -euo pipefail
 
+SCRIPT_DIR="$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)"
 WORKSPACE="${OPENCLAW_WORKSPACE:-$HOME/.openclaw/workspace}"
 cd "$WORKSPACE"
 
@@ -102,6 +103,11 @@ if [ -f "$PENDING" ] && [ -s "$PENDING" ]; then
       CHANGELOG="${CHANGELOG}  [$readable] $user\n"
       CHANGELOG="${CHANGELOG}  action: restore $action_file from $action_from\n"
       [ -n "$action_reason" ] && CHANGELOG="${CHANGELOG}  reason: $action_reason\n"
+    elif [ "$action" = "pl-pull" ]; then
+      CHANGELOG="${CHANGELOG}  [$readable] $user\n"
+      CHANGELOG="${CHANGELOG}  action: pl-pull → v$action_target\n"
+      [ -n "$action_from" ] && CHANGELOG="${CHANGELOG}  label: $action_from\n"
+      [ -n "$action_reason" ] && CHANGELOG="${CHANGELOG}  reason: $action_reason\n"
     else
       CHANGELOG="${CHANGELOG}  [$readable] $user ($channel): $files\n"
     fi
@@ -170,5 +176,13 @@ if [ -n "$GIT_REMOTE" ]; then
     echo "↑ Pushed to \`$GIT_REMOTE\`"
   else
     echo "⚠️ Push to \`$GIT_REMOTE\` failed"
+  fi
+fi
+
+# ─── Sync to PromptLayer ──────────────────────────────────────────────
+if command -v node &>/dev/null; then
+  _pl_enabled=$(jq -r '.promptlayer.enabled // false' "$WORKSPACE/.agent-changelog.json" 2>/dev/null || echo "false")
+  if [ "$_pl_enabled" = "true" ]; then
+    node "$SCRIPT_DIR/pl-push.js" --message "$SUBJECT" 2>&1 || true
   fi
 fi

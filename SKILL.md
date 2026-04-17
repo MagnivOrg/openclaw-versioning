@@ -17,6 +17,7 @@ Use this skill when the user asks about:
 - Rolling back or restoring files
 - Taking or inspecting snapshots or status
 - Setting up or verifying auto-versioning
+- Pulling a specific version or label from PromptLayer
 
 ## Response Framework
 
@@ -74,6 +75,10 @@ Use this only for explicit `/agent-changelog` invocations, and return stdout ver
 - `restore` -> `bash {baseDir}/scripts/restore.sh <file> <commit> ["reason"]`
 - `commit` (user-requested) -> `bash {baseDir}/scripts/commit.sh --manual ["message"] [--summary "one-line semantic summary"]`
 - `commit` (cron-triggered) -> `bash {baseDir}/scripts/commit.sh [--summary "one-line semantic summary"]`
+- `pull from promptlayer` -> `node {baseDir}/scripts/pl-pull.js`
+- `pull from promptlayer version <n>` -> `node {baseDir}/scripts/pl-pull.js --version <n>`
+- `pull from promptlayer label <label>` -> `node {baseDir}/scripts/pl-pull.js --label <label>`
+- `pull from promptlayer version <n> reason <text>` -> `node {baseDir}/scripts/pl-pull.js --version <n> --reason "<text>"`
 
 ## Auto-Versioning Overview
 
