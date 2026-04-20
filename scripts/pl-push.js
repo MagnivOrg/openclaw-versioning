@@ -7,31 +7,24 @@ const path = require('path');
 const { execSync } = require('child_process');
 
 const WORKSPACE = process.env.OPENCLAW_WORKSPACE || path.join(process.env.HOME, '.openclaw/workspace');
-const OPENCLAW_CONFIG = process.env.OPENCLAW_CONFIG || path.join(os.homedir(), '.openclaw', 'openclaw.json');
+const WORKSPACE_CFG = path.join(WORKSPACE, '.agent-changelog.json');
 const BASE_URL = 'https://api.promptlayer.com';
-const SNAPSHOT_PATH = '.promptlayer/snapshot.zip.b64';
+const SNAPSHOT_PATH = 'snapshot.zip';
 
-function loadOpenClawConfig() {
+function loadWorkspaceConfig() {
   try {
-    const raw = fs.readFileSync(OPENCLAW_CONFIG, 'utf8');
-    return JSON.parse(raw);
-  } catch (err) {
-    if (err && err.code === 'ENOENT') return {};
-    console.error(`OpenClaw config is invalid or unreadable: ${OPENCLAW_CONFIG}`);
-    process.exit(1);
+    return JSON.parse(fs.readFileSync(WORKSPACE_CFG, 'utf8'));
+  } catch {
+    return {};
   }
 }
 
-function getSkillEntry(config) {
-  return config?.skills?.entries?.['agent-changelog'] || {};
-}
-
-function buildSnapshotBase64() {
+function buildSnapshotZip() {
   const tmpDir = fs.mkdtempSync(path.join(os.tmpdir(), 'agent-changelog-'));
   const zipPath = path.join(tmpDir, 'snapshot.zip');
   try {
     execSync(`git archive --format=zip -o ${JSON.stringify(zipPath)} HEAD`, { cwd: WORKSPACE });
-    return fs.readFileSync(zipPath).toString('base64');
+    return fs.readFileSync(zipPath);
   } finally {
     fs.rmSync(tmpDir, { recursive: true, force: true });
   }
@@ -46,13 +39,10 @@ async function main() {
     if (args[i] === '--label' && args[i + 1]) releaseLabel = args[++i];
   }
 
-  const openclawConfig = loadOpenClawConfig();
-  const skillEntry = getSkillEntry(openclawConfig);
-  const pl = skillEntry.promptlayer || {};
+  const pl = loadWorkspaceConfig().promptlayer || {};
+  if (!pl.enabled || !pl.collectionId) return;
 
-  if (!pl?.enabled || !pl.collectionId) return;
-
-  const apiKeyValue = skillEntry.apiKey?.value || '';
+  const apiKeyValue = process.env.PROMPTLAYER_API_KEY || '';
   if (!apiKeyValue) return;
 
   const statusLines = execSync('git diff-tree --no-commit-id -r --name-status HEAD', { cwd: WORKSPACE })
@@ -64,19 +54,18 @@ async function main() {
     commitMessage = execSync('git log -1 --pretty=%s', { cwd: WORKSPACE }).toString().trim();
   }
 
-  const snapshotBase64 = buildSnapshotBase64();
-  const body = {
-    commit_message: commitMessage,
-    file_updates: [{ path: SNAPSHOT_PATH, content: snapshotBase64 }],
-  };
-  if (releaseLabel) body.release_label = releaseLabel;
+  const zipBuffer = buildSnapshotZip();
+  const form = new FormData();
+  form.append('commit_message', commitMessage);
+  form.append('file_updates', new Blob([zipBuffer], { type: 'application/zip' }), SNAPSHOT_PATH);
+  if (releaseLabel) form.append('release_label', releaseLabel);
 
   const res = await fetch(
     `${BASE_URL}/api/public/v2/skill-collections/${pl.collectionId}/versions`,
     {
       method: 'POST',
-      headers: { 'X-API-KEY': apiKeyValue, 'Content-Type': 'application/json' },
-      body: JSON.stringify(body),
+      headers: { 'X-API-KEY': apiKeyValue },
+      body: form,
     }
   );
 

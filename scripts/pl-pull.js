@@ -7,34 +7,19 @@ const path = require('path');
 const { execSync } = require('child_process');
 
 const WORKSPACE = process.env.OPENCLAW_WORKSPACE || path.join(process.env.HOME, '.openclaw/workspace');
-const OPENCLAW_CONFIG = process.env.OPENCLAW_CONFIG || path.join(os.homedir(), '.openclaw', 'openclaw.json');
+const WORKSPACE_CFG = path.join(WORKSPACE, '.agent-changelog.json');
 const BASE_URL = 'https://api.promptlayer.com';
-const SNAPSHOT_PATH = '.promptlayer/snapshot.zip.b64';
 
-function loadOpenClawConfig() {
+function loadWorkspaceConfig() {
   try {
-    const raw = fs.readFileSync(OPENCLAW_CONFIG, 'utf8');
-    return JSON.parse(raw);
-  } catch (err) {
-    if (err && err.code === 'ENOENT') return {};
-    console.error(`OpenClaw config is invalid or unreadable: ${OPENCLAW_CONFIG}`);
-    process.exit(1);
+    return JSON.parse(fs.readFileSync(WORKSPACE_CFG, 'utf8'));
+  } catch {
+    return {};
   }
 }
 
-function saveOpenClawConfig(config) {
-  fs.mkdirSync(path.dirname(OPENCLAW_CONFIG), { recursive: true });
-  fs.writeFileSync(OPENCLAW_CONFIG, JSON.stringify(config, null, 2) + '\n');
-}
-
-function getSkillEntry(config) {
-  return config?.skills?.entries?.['agent-changelog'] || {};
-}
-
-function setSkillEntry(config, entry) {
-  if (!config.skills) config.skills = {};
-  if (!config.skills.entries) config.skills.entries = {};
-  config.skills.entries['agent-changelog'] = entry;
+function saveWorkspaceConfig(config) {
+  fs.writeFileSync(WORKSPACE_CFG, JSON.stringify(config, null, 2) + '\n');
 }
 
 function listFiles(rootDir) {
@@ -56,46 +41,61 @@ function listFiles(rootDir) {
   return results;
 }
 
-function extractSnapshot(snapshotBase64) {
+
+function unzipToDir(zipBuffer) {
   const tmpDir = fs.mkdtempSync(path.join(os.tmpdir(), 'agent-changelog-'));
   const zipPath = path.join(tmpDir, 'snapshot.zip');
   const extractDir = path.join(tmpDir, 'extract');
-  try {
-    fs.writeFileSync(zipPath, Buffer.from(snapshotBase64, 'base64'));
-    fs.mkdirSync(extractDir, { recursive: true });
-    if (process.platform === 'win32') {
-      const psZip = zipPath.replace(/'/g, "''");
-      const psDest = extractDir.replace(/'/g, "''");
-      execSync(
-        `powershell -NoProfile -Command "Expand-Archive -LiteralPath '${psZip}' -DestinationPath '${psDest}' -Force"`
-      );
-    } else {
-      execSync(`unzip -o ${JSON.stringify(zipPath)} -d ${JSON.stringify(extractDir)}`);
-    }
-    const snapshotFiles = listFiles(extractDir);
-    const snapshotSet = new Set(snapshotFiles);
-    const trackedFiles = execSync('git ls-files', { cwd: WORKSPACE })
-      .toString().trim().split('\n').filter(Boolean);
+  fs.writeFileSync(zipPath, zipBuffer);
+  fs.mkdirSync(extractDir, { recursive: true });
+  if (process.platform === 'win32') {
+    const psZip = zipPath.replace(/'/g, "''");
+    const psDest = extractDir.replace(/'/g, "''");
+    execSync(`powershell -NoProfile -Command "Expand-Archive -LiteralPath '${psZip}' -DestinationPath '${psDest}' -Force"`);
+  } else {
+    execSync(`unzip -o ${JSON.stringify(zipPath)} -d ${JSON.stringify(extractDir)}`);
+  }
+  // PromptLayer wraps files under a root_path prefix (e.g. .openclaw/).
+  // If there's a single top-level directory, treat its contents as the root.
+  const topEntries = fs.readdirSync(extractDir, { withFileTypes: true });
+  if (topEntries.length === 1 && topEntries[0].isDirectory()) {
+    return { tmpDir, extractDir: path.join(extractDir, topEntries[0].name) };
+  }
+  return { tmpDir, extractDir };
+}
 
-    for (const filePath of trackedFiles) {
-      if (!snapshotSet.has(filePath)) {
-        fs.rmSync(path.join(WORKSPACE, filePath), { force: true });
-      }
-    }
+function diffAndApply(extractDir) {
+  const remoteFiles = listFiles(extractDir);
+  const remoteSet = new Set(remoteFiles);
+  const trackedFiles = execSync('git ls-files', { cwd: WORKSPACE })
+    .toString().trim().split('\n').filter(Boolean);
 
-    for (const filePath of snapshotFiles) {
-      const src = path.join(extractDir, filePath);
-      const dest = path.join(WORKSPACE, filePath);
+  const changed = [];
+  const added = [];
+
+  // Check for changed or added files
+  for (const filePath of remoteFiles) {
+    const src = path.join(extractDir, filePath);
+    const dest = path.join(WORKSPACE, filePath);
+    const srcContent = fs.readFileSync(src);
+
+    if (!fs.existsSync(dest)) {
       fs.mkdirSync(path.dirname(dest), { recursive: true });
       fs.copyFileSync(src, dest);
+      added.push(filePath);
+    } else {
+      const destContent = fs.readFileSync(dest);
+      if (!srcContent.equals(destContent)) {
+        fs.copyFileSync(src, dest);
+        changed.push(filePath);
+      }
     }
-    return snapshotFiles;
-  } catch {
-    console.error('Failed to extract PromptLayer snapshot. Ensure unzip (mac/Linux) or Expand-Archive (Windows) is available.');
-    process.exit(1);
-  } finally {
-    fs.rmSync(tmpDir, { recursive: true, force: true });
   }
+
+  // Non-destructive: never remove local-only files.
+  // Only PL additions and modifications are applied.
+
+  return { all: remoteFiles, changed, added };
 }
 
 async function main() {
@@ -114,13 +114,12 @@ async function main() {
     if (args[i] === '--force') force = true;
   }
 
-  const openclawConfig = loadOpenClawConfig();
-  const skillEntry = getSkillEntry(openclawConfig);
-  const pl = skillEntry.promptlayer || {};
-  const apiKeyValue = skillEntry.apiKey?.value || '';
+  const workspaceConfig = loadWorkspaceConfig();
+  const pl = workspaceConfig.promptlayer || {};
+  const apiKeyValue = process.env.PROMPTLAYER_API_KEY || '';
 
   if (!apiKeyValue) {
-    console.error('Missing API key. Save it in OpenClaw config.');
+    console.error('Missing API key. Set PROMPTLAYER_API_KEY in your environment.');
     process.exit(1);
   }
 
@@ -141,90 +140,104 @@ async function main() {
   if (label) params.set('label', label);
   const query = params.toString() ? `?${params}` : '';
 
-  const res = await fetch(
-    `${BASE_URL}/api/public/v2/skill-collections/${encodeURIComponent(identifier)}${query}`,
-    { headers: { 'X-API-KEY': apiKeyValue } }
-  );
+  const collectionUrl = `${BASE_URL}/api/public/v2/skill-collections/${encodeURIComponent(identifier)}`;
 
-  if (!res.ok) {
-    const err = await res.text();
-    console.error(`PromptLayer API error ${res.status}: ${err}`);
+  const metaRes = await fetch(`${collectionUrl}${query}`, { headers: { 'X-API-KEY': apiKeyValue } });
+  if (!metaRes.ok) {
+    const err = await metaRes.text();
+    console.error(`PromptLayer API error ${metaRes.status}: ${err}`);
     process.exit(1);
   }
-
-  const { skill_collection, files, version: versionInfo } = await res.json();
+  const { skill_collection, version: versionInfo } = await metaRes.json();
   const versionNumber = versionInfo?.number ?? 'latest';
   const versionLabel = label || versionInfo?.release_label || '';
 
-  const snapshotBase64 = files?.[SNAPSHOT_PATH] || '';
-  if (!snapshotBase64) {
-    console.error('PromptLayer snapshot missing.');
+  const zipParams = new URLSearchParams(params);
+  zipParams.set('format', 'zip');
+  const zipRes = await fetch(`${collectionUrl}?${zipParams}`, { headers: { 'X-API-KEY': apiKeyValue } });
+  if (!zipRes.ok) {
+    const err = await zipRes.text();
+    console.error(`PromptLayer API error ${zipRes.status}: ${err}`);
     process.exit(1);
   }
+  const outerZipBuffer = Buffer.from(await zipRes.arrayBuffer());
+  let tmpDir;
+  try {
+    const extracted = unzipToDir(outerZipBuffer);
+    tmpDir = extracted.tmpDir;
+    const { all: snapshotFiles, changed, added } = diffAndApply(extracted.extractDir);
 
-  const snapshotFiles = extractSnapshot(snapshotBase64);
-
-  if (connectIdentifier) {
-    // Setup mode: update config, skip pending_commits
-    const nextApiKey = apiKeyValue ? { value: apiKeyValue } : skillEntry.apiKey;
-    const updatedSkillEntry = {
-      ...skillEntry,
-      sync: { ...(skillEntry.sync || {}), provider: 'promptlayer' },
-      promptlayer: {
+    if (connectIdentifier) {
+      workspaceConfig.promptlayer = {
         enabled: true,
         skillName: skill_collection.name,
         collectionId: skill_collection.id,
         provider: skill_collection.provider || 'openclaw',
-      },
-    };
-    if (nextApiKey) updatedSkillEntry.apiKey = nextApiKey;
-    setSkillEntry(openclawConfig, updatedSkillEntry);
-    saveOpenClawConfig(openclawConfig);
-    console.log(`✅ Connected "${skill_collection.name}" (${skill_collection.id}) — pulled ${snapshotFiles.length} files from v${versionNumber}`);
-    return;
-  }
+      };
+      saveWorkspaceConfig(workspaceConfig);
+      console.log(`✅ Connected "${skill_collection.name}" (${skill_collection.id}) — pulled ${snapshotFiles.length} files from v${versionNumber}`);
+      // Always report what changed
+      const touchedConnect = [...changed, ...added];
+      if (touchedConnect.length > 0) {
+        const parts = [];
+        if (changed.length) parts.push(`${changed.length} modified`);
+        if (added.length) parts.push(`${added.length} added`);
+        console.log(`\n📋 Changes from v${versionNumber}: ${parts.join(', ')}`);
+        if (changed.length) changed.forEach(f => console.log(`  M ${f}`));
+        if (added.length) added.forEach(f => console.log(`  A ${f}`));
+      } else {
+        console.log(`\n✓ All files already match v${versionNumber}`);
+      }
+      return;
+    }
 
-  const trackedFiles = execSync('git ls-files', { cwd: WORKSPACE })
-    .toString().trim().split('\n').filter(Boolean);
-  for (const filePath of trackedFiles) {
+    const touchedFiles = [...changed, ...added];
+    if (touchedFiles.length === 0) {
+      console.log('✓ Already up to date');
+      return;
+    }
+
+    // Stage only the files that changed
+    for (const filePath of [...changed, ...added]) {
+      try {
+        execSync(`git add ${JSON.stringify(filePath)}`, { cwd: WORKSPACE });
+      } catch { /* skip unstage-able paths */ }
+    }
+    // Read actor from .version-context
+    let actor = 'skill invocation', actorId = 'skill invocation', channel = 'unknown';
     try {
-      execSync(`git add ${JSON.stringify(filePath)}`, { cwd: WORKSPACE });
-    } catch { /* skip unstage-able paths */ }
+      const ctx = JSON.parse(fs.readFileSync(path.join(WORKSPACE, '.version-context'), 'utf8'));
+      actor = ctx.user || actor;
+      actorId = ctx.userId || actorId;
+      channel = ctx.channel || channel;
+    } catch { /* no active context */ }
+
+    const entry = {
+      ts: Date.now(),
+      user: actor,
+      userId: actorId,
+      channel,
+      action: 'pl-pull',
+      target: String(versionNumber),
+      from: versionLabel,
+      reason,
+      files: touchedFiles,
+    };
+
+    fs.appendFileSync(path.join(WORKSPACE, 'pending_commits.jsonl'), JSON.stringify(entry) + '\n');
+
+    const versionStr = versionLabel ? `v${versionNumber} (${versionLabel})` : `v${versionNumber}`;
+    const parts = [];
+    if (changed.length) parts.push(`${changed.length} modified`);
+    if (added.length) parts.push(`${added.length} added`);
+    console.log(`⬇️  **Pulled** ${versionStr} — ${parts.join(', ')}`);
+    if (changed.length) changed.forEach(f => console.log(`  M ${f}`));
+    if (added.length) added.forEach(f => console.log(`  A ${f}`));
+    console.log(`_by ${actor}_`);
+    console.log(`Commit with \`/agent-changelog commit\``);
+  } finally {
+    if (tmpDir) fs.rmSync(tmpDir, { recursive: true, force: true });
   }
-
-  const staged = execSync('git diff --cached --name-only', { cwd: WORKSPACE }).toString().trim();
-  if (!staged) {
-    console.log('✓ Already up to date');
-    return;
-  }
-
-  // Read actor from .version-context (same pattern as rollback.sh)
-  let actor = 'skill invocation', actorId = 'skill invocation', channel = 'unknown';
-  try {
-    const ctx = JSON.parse(fs.readFileSync(path.join(WORKSPACE, '.version-context'), 'utf8'));
-    actor = ctx.user || actor;
-    actorId = ctx.userId || actorId;
-    channel = ctx.channel || channel;
-  } catch { /* no active context */ }
-
-  const entry = {
-    ts: Date.now(),
-    user: actor,
-    userId: actorId,
-    channel,
-    action: 'pl-pull',
-    target: String(versionNumber),
-    from: versionLabel,
-    reason,
-    files: snapshotFiles,
-  };
-
-  fs.appendFileSync(path.join(WORKSPACE, 'pending_commits.jsonl'), JSON.stringify(entry) + '\n');
-
-  const versionStr = versionLabel ? `v${versionNumber} (${versionLabel})` : `v${versionNumber}`;
-  console.log(`⬇️  **Pulled** ${versionStr} — ${snapshotFiles.length} file(s) staged`);
-  console.log(`_by ${actor}_`);
-  console.log(`Commit with \`/agent-changelog commit\``);
 }
 
 main().catch(e => { console.error(e.message); process.exit(1); });

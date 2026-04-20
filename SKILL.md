@@ -99,17 +99,18 @@ Use this flow after setup to help users connect the workspace to GitHub. The use
 2. **Git identity.** Ensure `user.name` and `user.email` are set for commits.
 3. **Auth method.** Offer SSH or HTTPS; proceed with their preference.
 4. **Remote and verify.** Ensure an `origin` remote exists and verify access.
-5. **Next action.** Create or select the GitHub repo, then push or fetch as needed.
+5. **Enable sync.** Set `github.enabled = true` in `<workspace>/.agent-changelog.json` to activate auto-push on each batch commit.
+6. **Next action.** Create or select the GitHub repo, then push or fetch as needed.
 
 ## PromptLayer Onboarding (Setup Add-on)
 
 Use this flow after setup to help users connect the workspace to PromptLayer. Keep it conversational like the GitHub flow and ensure they pick PromptLayer (not both).
 
 1. **Intent.** Confirm they want PromptLayer sync for this workspace.
-2. **API key.** Ask for the API key and store it in the OpenClaw config.
+2. **API key.** Ask for the API key and set it as `PROMPTLAYER_API_KEY` in their environment (e.g. shell profile or OpenClaw env config). The scripts read it from the environment; do not write the raw key value into any config file.
 3. **Collection choice.** Ask whether to connect to an existing collection or create a new one.
 4. **Dependency check.** PromptLayer pulls require `unzip` (macOS/Linux) or PowerShell `Expand-Archive` (Windows).
-5. **Config.** Update OpenClaw config (`~/.openclaw/openclaw.json`) with `skills.entries.agent-changelog.promptlayer` and `skills.entries.agent-changelog.apiKey = { value: "<API_KEY>" }`, then set `sync.provider` to `promptlayer`.
+5. **Config.** Collection metadata (`collectionId`, `skillName`, `provider`) is stored in `.agent-changelog.json` in the workspace — the scripts handle this automatically. The only openclaw.json entry written is the SecretRef: `skills.entries.agent-changelog.apiKey = { source: "env", provider: "default", id: "PROMPTLAYER_API_KEY" }`.
 6. **Connect.**
 	- Existing: run `node {baseDir}/scripts/pl-pull.js --connect <name-or-id>`
 	- New: run `node {baseDir}/scripts/pl-init.js` after setting `promptlayer.skillName`

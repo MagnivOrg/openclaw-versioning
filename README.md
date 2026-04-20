@@ -118,6 +118,9 @@ No. The hooks rely on OpenClaw's event system (`message:received` / `message:sen
 **Which external systems can I connect?**
 GitHub or PromptLayer. Pick one per workspace. Auto-sync works with either provider: GitHub pushes to your remote when configured, and PromptLayer publishes a version after each batch commit. Provider configuration details are stored in your OpenClaw config (not in the workspace).
 
+**How does push/pull work with PromptLayer?**
+Push always creates a new version in PromptLayer; existing versions are never modified or deleted, so you can always pull an older one back. Pull is diff-based: only files that differ from the pulled version are updated locally. Any local files that don't exist in the PromptLayer version are left untouched, so nothing is deleted from your workspace during a pull.
+
 **How do you handle secrets and sensitive data?**
 PromptLayer API keys are stored only in your local OpenClaw config and are never written to `.agent-changelog.json` or tracked files. Setup creates a `.gitignore` with common secret patterns, but you should still review your workspace and tracked files before syncing to any external system.
 

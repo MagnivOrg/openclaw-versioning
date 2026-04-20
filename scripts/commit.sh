@@ -169,26 +169,28 @@ echo "_by ${USERS}_"
 [ -n "$SUMMARY" ] && echo "$SUMMARY"
 
 # ─── Sync provider ────────────────────────────────────────────────────
-OPENCLAW_CFG="${OPENCLAW_CONFIG:-$HOME/.openclaw/openclaw.json}"
+WORKSPACE_CFG="$WORKSPACE/.agent-changelog.json"
 SYNC_PROVIDER="local"
-if [ -f "$OPENCLAW_CFG" ] && command -v jq &>/dev/null; then
-  SYNC_PROVIDER=$(jq -r '.skills.entries["agent-changelog"].sync.provider // "local"' "$OPENCLAW_CFG" 2>/dev/null | tr '[:upper:]' '[:lower:]')
+if [ -f "$WORKSPACE_CFG" ] && command -v jq &>/dev/null; then
+  _pl_enabled=$(jq -r '.promptlayer.enabled // false' "$WORKSPACE_CFG" 2>/dev/null || echo "false")
+  _pl_collection=$(jq -r '.promptlayer.collectionId // ""' "$WORKSPACE_CFG" 2>/dev/null || echo "")
+  _gh_enabled=$(jq -r '.github.enabled // false' "$WORKSPACE_CFG" 2>/dev/null || echo "false")
+  if [ "$_pl_enabled" = "true" ] && [ -n "$_pl_collection" ]; then
+    SYNC_PROVIDER="promptlayer"
+  elif [ "$_gh_enabled" = "true" ]; then
+    SYNC_PROVIDER="github"
+  fi
 fi
 
 if [ "$SYNC_PROVIDER" = "github" ]; then
   GIT_REMOTE=$(git remote 2>/dev/null | head -1)
-  if [ -n "$GIT_REMOTE" ]; then
-    if git push "$GIT_REMOTE" 2>/dev/null; then
-      echo "↑ Pushed to \`$GIT_REMOTE\`"
-    else
-      echo "⚠️ Push to \`$GIT_REMOTE\` failed"
-    fi
+  if git push "$GIT_REMOTE" 2>/dev/null; then
+    echo "↑ Pushed to \`$GIT_REMOTE\`"
+  else
+    echo "⚠️ Push to \`$GIT_REMOTE\` failed"
   fi
 elif [ "$SYNC_PROVIDER" = "promptlayer" ]; then
   if command -v node &>/dev/null; then
-    _pl_enabled=$(jq -r '.skills.entries["agent-changelog"].promptlayer.enabled // false' "$OPENCLAW_CFG" 2>/dev/null || echo "false")
-    if [ "$_pl_enabled" = "true" ]; then
-      node "$SCRIPT_DIR/pl-push.js" --message "$SUBJECT" 2>&1 || true
-    fi
+    node "$SCRIPT_DIR/pl-push.js" --message "$SUBJECT" 2>&1 || true
   fi
 fi
