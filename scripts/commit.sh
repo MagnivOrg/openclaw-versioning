@@ -174,9 +174,10 @@ SYNC_PROVIDER="local"
 if [ -f "$WORKSPACE_CFG" ] && command -v jq &>/dev/null; then
   _pl_enabled=$(jq -r '.promptlayer.enabled // false' "$WORKSPACE_CFG" 2>/dev/null || echo "false")
   _pl_collection=$(jq -r '.promptlayer.collectionId // ""' "$WORKSPACE_CFG" 2>/dev/null || echo "")
+  _gh_enabled=$(jq -r '.github.enabled // false' "$WORKSPACE_CFG" 2>/dev/null || echo "false")
   if [ "$_pl_enabled" = "true" ] && [ -n "$_pl_collection" ]; then
     SYNC_PROVIDER="promptlayer"
-  elif [ -n "$(git remote 2>/dev/null | head -1)" ]; then
+  elif [ "$_gh_enabled" = "true" ]; then
     SYNC_PROVIDER="github"
   fi
 fi

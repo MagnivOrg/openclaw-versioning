@@ -99,7 +99,8 @@ Use this flow after setup to help users connect the workspace to GitHub. The use
 2. **Git identity.** Ensure `user.name` and `user.email` are set for commits.
 3. **Auth method.** Offer SSH or HTTPS; proceed with their preference.
 4. **Remote and verify.** Ensure an `origin` remote exists and verify access.
-5. **Next action.** Create or select the GitHub repo, then push or fetch as needed.
+5. **Enable sync.** Set `github.enabled = true` in `<workspace>/.agent-changelog.json` to activate auto-push on each batch commit.
+6. **Next action.** Create or select the GitHub repo, then push or fetch as needed.
 
 ## PromptLayer Onboarding (Setup Add-on)
 

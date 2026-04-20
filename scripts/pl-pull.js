@@ -9,7 +9,6 @@ const { execSync } = require('child_process');
 const WORKSPACE = process.env.OPENCLAW_WORKSPACE || path.join(process.env.HOME, '.openclaw/workspace');
 const WORKSPACE_CFG = path.join(WORKSPACE, '.agent-changelog.json');
 const BASE_URL = 'https://api.promptlayer.com';
-const SNAPSHOT_PATH = 'snapshot.zip';
 
 function loadWorkspaceConfig() {
   try {
@@ -42,33 +41,6 @@ function listFiles(rootDir) {
   return results;
 }
 
-function extractFromOuterZip(outerZipBuffer) {
-  const tmpDir = fs.mkdtempSync(path.join(os.tmpdir(), 'agent-changelog-'));
-  const outerZipPath = path.join(tmpDir, 'outer.zip');
-  const outerExtractDir = path.join(tmpDir, 'outer');
-  try {
-    fs.writeFileSync(outerZipPath, outerZipBuffer);
-    fs.mkdirSync(outerExtractDir, { recursive: true });
-    if (process.platform === 'win32') {
-      const psZip = outerZipPath.replace(/'/g, "''");
-      const psDest = outerExtractDir.replace(/'/g, "''");
-      execSync(`powershell -NoProfile -Command "Expand-Archive -LiteralPath '${psZip}' -DestinationPath '${psDest}' -Force"`);
-    } else {
-      execSync(`unzip -o ${JSON.stringify(outerZipPath)} -d ${JSON.stringify(outerExtractDir)}`);
-    }
-    const snapshotZipPath = path.join(outerExtractDir, SNAPSHOT_PATH);
-    if (!fs.existsSync(snapshotZipPath)) {
-      console.error(`PromptLayer snapshot missing (expected ${SNAPSHOT_PATH} inside collection zip).`);
-      process.exit(1);
-    }
-    return fs.readFileSync(snapshotZipPath);
-  } catch {
-    console.error('Failed to extract PromptLayer collection zip. Ensure unzip (mac/Linux) or Expand-Archive (Windows) is available.');
-    process.exit(1);
-  } finally {
-    fs.rmSync(tmpDir, { recursive: true, force: true });
-  }
-}
 
 function unzipToDir(zipBuffer) {
   const tmpDir = fs.mkdtempSync(path.join(os.tmpdir(), 'agent-changelog-'));
@@ -100,7 +72,6 @@ function diffAndApply(extractDir) {
 
   const changed = [];
   const added = [];
-  const removed = [];
 
   // Check for changed or added files
   for (const filePath of remoteFiles) {
@@ -124,7 +95,7 @@ function diffAndApply(extractDir) {
   // Non-destructive: never remove local-only files.
   // Only PL additions and modifications are applied.
 
-  return { all: remoteFiles, changed, added, removed };
+  return { all: remoteFiles, changed, added };
 }
 
 async function main() {
@@ -190,12 +161,11 @@ async function main() {
     process.exit(1);
   }
   const outerZipBuffer = Buffer.from(await zipRes.arrayBuffer());
-  // The zip from PromptLayer contains the workspace files directly.
   let tmpDir;
   try {
     const extracted = unzipToDir(outerZipBuffer);
     tmpDir = extracted.tmpDir;
-    const { all: snapshotFiles, changed, added, removed } = diffAndApply(extracted.extractDir);
+    const { all: snapshotFiles, changed, added } = diffAndApply(extracted.extractDir);
 
     if (connectIdentifier) {
       workspaceConfig.promptlayer = {
@@ -221,7 +191,7 @@ async function main() {
       return;
     }
 
-    const touchedFiles = [...changed, ...added, ...removed];
+    const touchedFiles = [...changed, ...added];
     if (touchedFiles.length === 0) {
       console.log('✓ Already up to date');
       return;
@@ -233,12 +203,6 @@ async function main() {
         execSync(`git add ${JSON.stringify(filePath)}`, { cwd: WORKSPACE });
       } catch { /* skip unstage-able paths */ }
     }
-    for (const filePath of removed) {
-      try {
-        execSync(`git rm --cached ${JSON.stringify(filePath)}`, { cwd: WORKSPACE });
-      } catch { /* already gone */ }
-    }
-
     // Read actor from .version-context
     let actor = 'skill invocation', actorId = 'skill invocation', channel = 'unknown';
     try {
@@ -266,11 +230,9 @@ async function main() {
     const parts = [];
     if (changed.length) parts.push(`${changed.length} modified`);
     if (added.length) parts.push(`${added.length} added`);
-    if (removed.length) parts.push(`${removed.length} removed`);
     console.log(`⬇️  **Pulled** ${versionStr} — ${parts.join(', ')}`);
     if (changed.length) changed.forEach(f => console.log(`  M ${f}`));
     if (added.length) added.forEach(f => console.log(`  A ${f}`));
-    if (removed.length) removed.forEach(f => console.log(`  D ${f}`));
     console.log(`_by ${actor}_`);
     console.log(`Commit with \`/agent-changelog commit\``);
   } finally {
