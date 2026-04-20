@@ -65,10 +65,11 @@ async function main() {
   }
 
   const zipBuffer = buildSnapshotZip();
+  const metadataObj = { commit_message: commitMessage };
+  if (releaseLabel) metadataObj.release_label = releaseLabel;
   const form = new FormData();
-  form.append('commit_message', commitMessage);
-  form.append('file_updates', new Blob([zipBuffer], { type: 'application/zip' }), SNAPSHOT_PATH);
-  if (releaseLabel) form.append('release_label', releaseLabel);
+  form.append('metadata', JSON.stringify(metadataObj));
+  form.append('zip', new Blob([zipBuffer], { type: 'application/zip' }), 'snapshot.zip');
 
   const res = await fetch(
     `${BASE_URL}/api/public/v2/skill-collections/${pl.collectionId}/versions`,

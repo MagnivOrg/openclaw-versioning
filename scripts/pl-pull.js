@@ -84,46 +84,66 @@ function extractFromOuterZip(outerZipBuffer) {
   }
 }
 
-function extractSnapshot(snapshotBuffer) {
+function unzipToDir(zipBuffer) {
   const tmpDir = fs.mkdtempSync(path.join(os.tmpdir(), 'agent-changelog-'));
   const zipPath = path.join(tmpDir, 'snapshot.zip');
   const extractDir = path.join(tmpDir, 'extract');
-  try {
-    fs.writeFileSync(zipPath, snapshotBuffer);
-    fs.mkdirSync(extractDir, { recursive: true });
-    if (process.platform === 'win32') {
-      const psZip = zipPath.replace(/'/g, "''");
-      const psDest = extractDir.replace(/'/g, "''");
-      execSync(
-        `powershell -NoProfile -Command "Expand-Archive -LiteralPath '${psZip}' -DestinationPath '${psDest}' -Force"`
-      );
-    } else {
-      execSync(`unzip -o ${JSON.stringify(zipPath)} -d ${JSON.stringify(extractDir)}`);
-    }
-    const snapshotFiles = listFiles(extractDir);
-    const snapshotSet = new Set(snapshotFiles);
-    const trackedFiles = execSync('git ls-files', { cwd: WORKSPACE })
-      .toString().trim().split('\n').filter(Boolean);
+  fs.writeFileSync(zipPath, zipBuffer);
+  fs.mkdirSync(extractDir, { recursive: true });
+  if (process.platform === 'win32') {
+    const psZip = zipPath.replace(/'/g, "''");
+    const psDest = extractDir.replace(/'/g, "''");
+    execSync(`powershell -NoProfile -Command "Expand-Archive -LiteralPath '${psZip}' -DestinationPath '${psDest}' -Force"`);
+  } else {
+    execSync(`unzip -o ${JSON.stringify(zipPath)} -d ${JSON.stringify(extractDir)}`);
+  }
+  // PromptLayer wraps files under a root_path prefix (e.g. .openclaw/).
+  // If there's a single top-level directory, treat its contents as the root.
+  const topEntries = fs.readdirSync(extractDir, { withFileTypes: true });
+  if (topEntries.length === 1 && topEntries[0].isDirectory()) {
+    return { tmpDir, extractDir: path.join(extractDir, topEntries[0].name) };
+  }
+  return { tmpDir, extractDir };
+}
 
-    for (const filePath of trackedFiles) {
-      if (!snapshotSet.has(filePath)) {
-        fs.rmSync(path.join(WORKSPACE, filePath), { force: true });
-      }
-    }
+function diffAndApply(extractDir) {
+  const remoteFiles = listFiles(extractDir);
+  const remoteSet = new Set(remoteFiles);
+  const trackedFiles = execSync('git ls-files', { cwd: WORKSPACE })
+    .toString().trim().split('\n').filter(Boolean);
 
-    for (const filePath of snapshotFiles) {
-      const src = path.join(extractDir, filePath);
-      const dest = path.join(WORKSPACE, filePath);
+  const changed = [];
+  const added = [];
+  const removed = [];
+
+  // Check for changed or added files
+  for (const filePath of remoteFiles) {
+    const src = path.join(extractDir, filePath);
+    const dest = path.join(WORKSPACE, filePath);
+    const srcContent = fs.readFileSync(src);
+
+    if (!fs.existsSync(dest)) {
       fs.mkdirSync(path.dirname(dest), { recursive: true });
       fs.copyFileSync(src, dest);
+      added.push(filePath);
+    } else {
+      const destContent = fs.readFileSync(dest);
+      if (!srcContent.equals(destContent)) {
+        fs.copyFileSync(src, dest);
+        changed.push(filePath);
+      }
     }
-    return snapshotFiles;
-  } catch {
-    console.error('Failed to extract PromptLayer snapshot. Ensure unzip (mac/Linux) or Expand-Archive (Windows) is available.');
-    process.exit(1);
-  } finally {
-    fs.rmSync(tmpDir, { recursive: true, force: true });
   }
+
+  // Check for files removed in the remote version
+  for (const filePath of trackedFiles) {
+    if (!remoteSet.has(filePath)) {
+      fs.rmSync(path.join(WORKSPACE, filePath), { force: true });
+      removed.push(filePath);
+    }
+  }
+
+  return { all: remoteFiles, changed, added, removed };
 }
 
 async function main() {
@@ -190,69 +210,87 @@ async function main() {
     process.exit(1);
   }
   const outerZipBuffer = Buffer.from(await zipRes.arrayBuffer());
-  const snapshotFiles = extractSnapshot(extractFromOuterZip(outerZipBuffer));
-
-  if (connectIdentifier) {
-    // Setup mode: update config, skip pending_commits
-    const nextApiKey = apiKeyValue ? { value: apiKeyValue } : skillEntry.apiKey;
-    const updatedSkillEntry = {
-      ...skillEntry,
-      sync: { ...(skillEntry.sync || {}), provider: 'promptlayer' },
-      promptlayer: {
-        enabled: true,
-        skillName: skill_collection.name,
-        collectionId: skill_collection.id,
-        provider: skill_collection.provider || 'openclaw',
-      },
-    };
-    if (nextApiKey) updatedSkillEntry.apiKey = nextApiKey;
-    setSkillEntry(openclawConfig, updatedSkillEntry);
-    saveOpenClawConfig(openclawConfig);
-    console.log(`✅ Connected "${skill_collection.name}" (${skill_collection.id}) — pulled ${snapshotFiles.length} files from v${versionNumber}`);
-    return;
-  }
-
-  const trackedFiles = execSync('git ls-files', { cwd: WORKSPACE })
-    .toString().trim().split('\n').filter(Boolean);
-  for (const filePath of trackedFiles) {
-    try {
-      execSync(`git add ${JSON.stringify(filePath)}`, { cwd: WORKSPACE });
-    } catch { /* skip unstage-able paths */ }
-  }
-
-  const staged = execSync('git diff --cached --name-only', { cwd: WORKSPACE }).toString().trim();
-  if (!staged) {
-    console.log('✓ Already up to date');
-    return;
-  }
-
-  // Read actor from .version-context (same pattern as rollback.sh)
-  let actor = 'skill invocation', actorId = 'skill invocation', channel = 'unknown';
+  // The zip from PromptLayer contains the workspace files directly.
+  let tmpDir;
   try {
-    const ctx = JSON.parse(fs.readFileSync(path.join(WORKSPACE, '.version-context'), 'utf8'));
-    actor = ctx.user || actor;
-    actorId = ctx.userId || actorId;
-    channel = ctx.channel || channel;
-  } catch { /* no active context */ }
+    const extracted = unzipToDir(outerZipBuffer);
+    tmpDir = extracted.tmpDir;
+    const { all: snapshotFiles, changed, added, removed } = diffAndApply(extracted.extractDir);
 
-  const entry = {
-    ts: Date.now(),
-    user: actor,
-    userId: actorId,
-    channel,
-    action: 'pl-pull',
-    target: String(versionNumber),
-    from: versionLabel,
-    reason,
-    files: snapshotFiles,
-  };
+    if (connectIdentifier) {
+      const nextApiKey = apiKeyValue ? { value: apiKeyValue } : skillEntry.apiKey;
+      const updatedSkillEntry = {
+        ...skillEntry,
+        sync: { ...(skillEntry.sync || {}), provider: 'promptlayer' },
+        promptlayer: {
+          enabled: true,
+          skillName: skill_collection.name,
+          collectionId: skill_collection.id,
+          provider: skill_collection.provider || 'openclaw',
+        },
+      };
+      if (nextApiKey) updatedSkillEntry.apiKey = nextApiKey;
+      setSkillEntry(openclawConfig, updatedSkillEntry);
+      saveOpenClawConfig(openclawConfig);
+      console.log(`✅ Connected "${skill_collection.name}" (${skill_collection.id}) — pulled ${snapshotFiles.length} files from v${versionNumber}`);
+      return;
+    }
 
-  fs.appendFileSync(path.join(WORKSPACE, 'pending_commits.jsonl'), JSON.stringify(entry) + '\n');
+    const touchedFiles = [...changed, ...added, ...removed];
+    if (touchedFiles.length === 0) {
+      console.log('✓ Already up to date');
+      return;
+    }
 
-  const versionStr = versionLabel ? `v${versionNumber} (${versionLabel})` : `v${versionNumber}`;
-  console.log(`⬇️  **Pulled** ${versionStr} — ${snapshotFiles.length} file(s) staged`);
-  console.log(`_by ${actor}_`);
-  console.log(`Commit with \`/agent-changelog commit\``);
+    // Stage only the files that changed
+    for (const filePath of [...changed, ...added]) {
+      try {
+        execSync(`git add ${JSON.stringify(filePath)}`, { cwd: WORKSPACE });
+      } catch { /* skip unstage-able paths */ }
+    }
+    for (const filePath of removed) {
+      try {
+        execSync(`git rm --cached ${JSON.stringify(filePath)}`, { cwd: WORKSPACE });
+      } catch { /* already gone */ }
+    }
+
+    // Read actor from .version-context
+    let actor = 'skill invocation', actorId = 'skill invocation', channel = 'unknown';
+    try {
+      const ctx = JSON.parse(fs.readFileSync(path.join(WORKSPACE, '.version-context'), 'utf8'));
+      actor = ctx.user || actor;
+      actorId = ctx.userId || actorId;
+      channel = ctx.channel || channel;
+    } catch { /* no active context */ }
+
+    const entry = {
+      ts: Date.now(),
+      user: actor,
+      userId: actorId,
+      channel,
+      action: 'pl-pull',
+      target: String(versionNumber),
+      from: versionLabel,
+      reason,
+      files: touchedFiles,
+    };
+
+    fs.appendFileSync(path.join(WORKSPACE, 'pending_commits.jsonl'), JSON.stringify(entry) + '\n');
+
+    const versionStr = versionLabel ? `v${versionNumber} (${versionLabel})` : `v${versionNumber}`;
+    const parts = [];
+    if (changed.length) parts.push(`${changed.length} modified`);
+    if (added.length) parts.push(`${added.length} added`);
+    if (removed.length) parts.push(`${removed.length} removed`);
+    console.log(`⬇️  **Pulled** ${versionStr} — ${parts.join(', ')}`);
+    if (changed.length) changed.forEach(f => console.log(`  M ${f}`));
+    if (added.length) added.forEach(f => console.log(`  A ${f}`));
+    if (removed.length) removed.forEach(f => console.log(`  D ${f}`));
+    console.log(`_by ${actor}_`);
+    console.log(`Commit with \`/agent-changelog commit\``);
+  } finally {
+    if (tmpDir) fs.rmSync(tmpDir, { recursive: true, force: true });
+  }
 }
 
 main().catch(e => { console.error(e.message); process.exit(1); });

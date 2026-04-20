@@ -101,11 +101,14 @@ async function main() {
   }
 
   const zipBuffer = buildSnapshotZip();
+  const metadata = JSON.stringify({
+    name: skillName,
+    provider,
+    commit_message: 'Initial snapshot — agent versioning setup',
+  });
   const form = new FormData();
-  form.append('name', skillName);
-  form.append('provider', provider);
-  form.append('commit_message', 'Initial snapshot — agent versioning setup');
-  form.append('files', new Blob([zipBuffer], { type: 'application/zip' }), SNAPSHOT_PATH);
+  form.append('metadata', metadata);
+  form.append('zip', new Blob([zipBuffer], { type: 'application/zip' }), 'snapshot.zip');
 
   const res = await fetch(`${BASE_URL}/api/public/v2/skill-collections`, {
     method: 'POST',
