@@ -9,7 +9,7 @@ const { execSync } = require('child_process');
 const WORKSPACE = process.env.OPENCLAW_WORKSPACE || path.join(process.env.HOME, '.openclaw/workspace');
 const OPENCLAW_CONFIG = process.env.OPENCLAW_CONFIG || path.join(os.homedir(), '.openclaw', 'openclaw.json');
 const BASE_URL = 'https://api.promptlayer.com';
-const SNAPSHOT_PATH = '.promptlayer/snapshot.zip.b64';
+const SNAPSHOT_PATH = 'snapshot.zip';
 
 function loadOpenClawConfig() {
   try {
@@ -37,12 +37,12 @@ function setSkillEntry(config, entry) {
   config.skills.entries['agent-changelog'] = entry;
 }
 
-function buildSnapshotBase64() {
+function buildSnapshotZip() {
   const tmpDir = fs.mkdtempSync(path.join(os.tmpdir(), 'agent-changelog-'));
   const zipPath = path.join(tmpDir, 'snapshot.zip');
   try {
     execSync(`git archive --format=zip -o ${JSON.stringify(zipPath)} HEAD`, { cwd: WORKSPACE });
-    return fs.readFileSync(zipPath).toString('base64');
+    return fs.readFileSync(zipPath);
   } finally {
     fs.rmSync(tmpDir, { recursive: true, force: true });
   }
@@ -100,17 +100,17 @@ async function main() {
     process.exit(1);
   }
 
-  const snapshotBase64 = buildSnapshotBase64();
+  const zipBuffer = buildSnapshotZip();
+  const form = new FormData();
+  form.append('name', skillName);
+  form.append('provider', provider);
+  form.append('commit_message', 'Initial snapshot — agent versioning setup');
+  form.append('files', new Blob([zipBuffer], { type: 'application/zip' }), SNAPSHOT_PATH);
 
   const res = await fetch(`${BASE_URL}/api/public/v2/skill-collections`, {
     method: 'POST',
-    headers: { 'X-API-KEY': apiKeyValue, 'Content-Type': 'application/json' },
-    body: JSON.stringify({
-      name: skillName,
-      provider,
-      commit_message: 'Initial snapshot — agent versioning setup',
-      files: [{ path: SNAPSHOT_PATH, content: snapshotBase64 }],
-    }),
+    headers: { 'X-API-KEY': apiKeyValue },
+    body: form,
   });
 
   if (!res.ok) {

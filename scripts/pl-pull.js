@@ -9,7 +9,7 @@ const { execSync } = require('child_process');
 const WORKSPACE = process.env.OPENCLAW_WORKSPACE || path.join(process.env.HOME, '.openclaw/workspace');
 const OPENCLAW_CONFIG = process.env.OPENCLAW_CONFIG || path.join(os.homedir(), '.openclaw', 'openclaw.json');
 const BASE_URL = 'https://api.promptlayer.com';
-const SNAPSHOT_PATH = '.promptlayer/snapshot.zip.b64';
+const SNAPSHOT_PATH = 'snapshot.zip';
 
 function loadOpenClawConfig() {
   try {
@@ -56,12 +56,40 @@ function listFiles(rootDir) {
   return results;
 }
 
-function extractSnapshot(snapshotBase64) {
+function extractFromOuterZip(outerZipBuffer) {
+  const tmpDir = fs.mkdtempSync(path.join(os.tmpdir(), 'agent-changelog-'));
+  const outerZipPath = path.join(tmpDir, 'outer.zip');
+  const outerExtractDir = path.join(tmpDir, 'outer');
+  try {
+    fs.writeFileSync(outerZipPath, outerZipBuffer);
+    fs.mkdirSync(outerExtractDir, { recursive: true });
+    if (process.platform === 'win32') {
+      const psZip = outerZipPath.replace(/'/g, "''");
+      const psDest = outerExtractDir.replace(/'/g, "''");
+      execSync(`powershell -NoProfile -Command "Expand-Archive -LiteralPath '${psZip}' -DestinationPath '${psDest}' -Force"`);
+    } else {
+      execSync(`unzip -o ${JSON.stringify(outerZipPath)} -d ${JSON.stringify(outerExtractDir)}`);
+    }
+    const snapshotZipPath = path.join(outerExtractDir, SNAPSHOT_PATH);
+    if (!fs.existsSync(snapshotZipPath)) {
+      console.error(`PromptLayer snapshot missing (expected ${SNAPSHOT_PATH} inside collection zip).`);
+      process.exit(1);
+    }
+    return fs.readFileSync(snapshotZipPath);
+  } catch {
+    console.error('Failed to extract PromptLayer collection zip. Ensure unzip (mac/Linux) or Expand-Archive (Windows) is available.');
+    process.exit(1);
+  } finally {
+    fs.rmSync(tmpDir, { recursive: true, force: true });
+  }
+}
+
+function extractSnapshot(snapshotBuffer) {
   const tmpDir = fs.mkdtempSync(path.join(os.tmpdir(), 'agent-changelog-'));
   const zipPath = path.join(tmpDir, 'snapshot.zip');
   const extractDir = path.join(tmpDir, 'extract');
   try {
-    fs.writeFileSync(zipPath, Buffer.from(snapshotBase64, 'base64'));
+    fs.writeFileSync(zipPath, snapshotBuffer);
     fs.mkdirSync(extractDir, { recursive: true });
     if (process.platform === 'win32') {
       const psZip = zipPath.replace(/'/g, "''");
@@ -141,28 +169,28 @@ async function main() {
   if (label) params.set('label', label);
   const query = params.toString() ? `?${params}` : '';
 
-  const res = await fetch(
-    `${BASE_URL}/api/public/v2/skill-collections/${encodeURIComponent(identifier)}${query}`,
-    { headers: { 'X-API-KEY': apiKeyValue } }
-  );
+  const collectionUrl = `${BASE_URL}/api/public/v2/skill-collections/${encodeURIComponent(identifier)}`;
 
-  if (!res.ok) {
-    const err = await res.text();
-    console.error(`PromptLayer API error ${res.status}: ${err}`);
+  const metaRes = await fetch(`${collectionUrl}${query}`, { headers: { 'X-API-KEY': apiKeyValue } });
+  if (!metaRes.ok) {
+    const err = await metaRes.text();
+    console.error(`PromptLayer API error ${metaRes.status}: ${err}`);
     process.exit(1);
   }
-
-  const { skill_collection, files, version: versionInfo } = await res.json();
+  const { skill_collection, version: versionInfo } = await metaRes.json();
   const versionNumber = versionInfo?.number ?? 'latest';
   const versionLabel = label || versionInfo?.release_label || '';
 
-  const snapshotBase64 = files?.[SNAPSHOT_PATH] || '';
-  if (!snapshotBase64) {
-    console.error('PromptLayer snapshot missing.');
+  const zipParams = new URLSearchParams(params);
+  zipParams.set('format', 'zip');
+  const zipRes = await fetch(`${collectionUrl}?${zipParams}`, { headers: { 'X-API-KEY': apiKeyValue } });
+  if (!zipRes.ok) {
+    const err = await zipRes.text();
+    console.error(`PromptLayer API error ${zipRes.status}: ${err}`);
     process.exit(1);
   }
-
-  const snapshotFiles = extractSnapshot(snapshotBase64);
+  const outerZipBuffer = Buffer.from(await zipRes.arrayBuffer());
+  const snapshotFiles = extractSnapshot(extractFromOuterZip(outerZipBuffer));
 
   if (connectIdentifier) {
     // Setup mode: update config, skip pending_commits
