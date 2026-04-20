@@ -8,6 +8,7 @@ const { execSync } = require('child_process');
 
 const WORKSPACE = process.env.OPENCLAW_WORKSPACE || path.join(process.env.HOME, '.openclaw/workspace');
 const OPENCLAW_CONFIG = process.env.OPENCLAW_CONFIG || path.join(os.homedir(), '.openclaw', 'openclaw.json');
+const WORKSPACE_CFG = path.join(WORKSPACE, '.agent-changelog.json');
 const BASE_URL = 'https://api.promptlayer.com';
 const SNAPSHOT_PATH = 'snapshot.zip';
 
@@ -27,14 +28,16 @@ function saveOpenClawConfig(config) {
   fs.writeFileSync(OPENCLAW_CONFIG, JSON.stringify(config, null, 2) + '\n');
 }
 
-function getSkillEntry(config) {
-  return config?.skills?.entries?.['agent-changelog'] || {};
+function loadWorkspaceConfig() {
+  try {
+    return JSON.parse(fs.readFileSync(WORKSPACE_CFG, 'utf8'));
+  } catch {
+    return {};
+  }
 }
 
-function setSkillEntry(config, entry) {
-  if (!config.skills) config.skills = {};
-  if (!config.skills.entries) config.skills.entries = {};
-  config.skills.entries['agent-changelog'] = entry;
+function saveWorkspaceConfig(config) {
+  fs.writeFileSync(WORKSPACE_CFG, JSON.stringify(config, null, 2) + '\n');
 }
 
 function buildSnapshotZip() {
@@ -60,55 +63,36 @@ async function main() {
     if (args[i] === '--api-key' && args[i + 1]) apiKeyArg = args[++i];
   }
 
-  const openclawConfig = loadOpenClawConfig();
-  const skillEntry = getSkillEntry(openclawConfig);
-  const pl = skillEntry.promptlayer || {};
+  const workspaceConfig = loadWorkspaceConfig();
+  const pl = workspaceConfig.promptlayer || {};
   const skillName = skillNameArg || pl.skillName || '';
   const provider = providerArg || pl.provider || 'openclaw';
-  const existingApiKey = skillEntry.apiKey?.value || '';
-  const apiKeyValue = apiKeyArg || existingApiKey;
+  const apiKeyValue = apiKeyArg || process.env.PROMPTLAYER_API_KEY || '';
 
   if (pl.collectionId) {
-    const nextApiKey = apiKeyValue ? { value: apiKeyValue } : skillEntry.apiKey;
-    const updatedSkillEntry = {
-      ...skillEntry,
-      sync: { ...(skillEntry.sync || {}), provider: 'promptlayer' },
-      promptlayer: {
-        enabled: true,
-        skillName: skillName || pl.skillName || '',
-        collectionId: pl.collectionId,
-        provider,
-      },
-    };
-    if (nextApiKey) updatedSkillEntry.apiKey = nextApiKey;
-    setSkillEntry(openclawConfig, updatedSkillEntry);
-    saveOpenClawConfig(openclawConfig);
     if (!apiKeyValue) {
-      console.error('Missing API key. Save it in OpenClaw config.');
+      console.error('Missing API key. Set PROMPTLAYER_API_KEY in your environment.');
     }
     console.log(`Already connected: ${pl.collectionId}`);
     return;
   }
 
   if (!skillName) {
-    console.error('Missing skill collection name. Pass --name or set skills.entries.agent-changelog.promptlayer.skillName in openclaw.json');
+    console.error('Missing skill collection name. Pass --name or set promptlayer.skillName in .agent-changelog.json');
     process.exit(1);
   }
 
   if (!apiKeyValue) {
-    console.error('Missing API key. Save it in OpenClaw config.');
+    console.error('Missing API key. Set PROMPTLAYER_API_KEY in your environment.');
     process.exit(1);
   }
 
   const zipBuffer = buildSnapshotZip();
-  const metadata = JSON.stringify({
-    name: skillName,
-    provider,
-    commit_message: 'Initial snapshot — agent versioning setup',
-  });
   const form = new FormData();
-  form.append('metadata', metadata);
-  form.append('zip', new Blob([zipBuffer], { type: 'application/zip' }), 'snapshot.zip');
+  form.append('name', skillName);
+  form.append('provider', provider);
+  form.append('commit_message', 'Initial snapshot — agent versioning setup');
+  form.append('files', new Blob([zipBuffer], { type: 'application/zip' }), SNAPSHOT_PATH);
 
   const res = await fetch(`${BASE_URL}/api/public/v2/skill-collections`, {
     method: 'POST',
@@ -124,18 +108,22 @@ async function main() {
 
   const { skill_collection } = await res.json();
 
-  const updatedSkillEntry = {
-    ...skillEntry,
-    sync: { ...(skillEntry.sync || {}), provider: 'promptlayer' },
-    promptlayer: {
-      enabled: true,
-      skillName,
-      collectionId: skill_collection.id,
-      provider,
-    },
+  // Store collection metadata in .agent-changelog.json
+  workspaceConfig.promptlayer = {
+    enabled: true,
+    skillName,
+    collectionId: skill_collection.id,
+    provider,
   };
-  updatedSkillEntry.apiKey = { value: apiKeyValue };
-  setSkillEntry(openclawConfig, updatedSkillEntry);
+  saveWorkspaceConfig(workspaceConfig);
+
+  // Store API key reference in openclaw.json (SecretRef format)
+  const openclawConfig = loadOpenClawConfig();
+  if (!openclawConfig.skills) openclawConfig.skills = {};
+  if (!openclawConfig.skills.entries) openclawConfig.skills.entries = {};
+  openclawConfig.skills.entries['agent-changelog'] = {
+    apiKey: { source: 'env', provider: 'default', id: 'PROMPTLAYER_API_KEY' },
+  };
   saveOpenClawConfig(openclawConfig);
 
   console.log(`✅ Collection "${skill_collection.name}" created (${skill_collection.id})`);

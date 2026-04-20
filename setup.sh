@@ -199,19 +199,6 @@ else
   success "\`.agent-changelog.json\` already exists — leaving as-is"
 fi
 
-# ─── Sync config (OpenClaw) ──────────────────────────────────────────
-header "⚙️ Sync config"
-
-if [ -f "$OPENCLAW_CFG" ] && command -v jq &>/dev/null; then
-  TMP=$(mktemp)
-  jq '
-    .skills.entries["agent-changelog"].sync.provider = "local"
-  ' "$OPENCLAW_CFG" > "$TMP" && mv "$TMP" "$OPENCLAW_CFG"
-  success "Sync provider set to local"
-else
-  warn "Could not update OpenClaw config — sync provider defaults to local"
-fi
-
 # ─── First snapshot ───────────────────────────────────────────────────
 header "📸 First snapshot"
 
