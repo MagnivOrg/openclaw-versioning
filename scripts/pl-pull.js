@@ -135,13 +135,8 @@ function diffAndApply(extractDir) {
     }
   }
 
-  // Check for files removed in the remote version
-  for (const filePath of trackedFiles) {
-    if (!remoteSet.has(filePath)) {
-      fs.rmSync(path.join(WORKSPACE, filePath), { force: true });
-      removed.push(filePath);
-    }
-  }
+  // Non-destructive: never remove local-only files.
+  // Only PL additions and modifications are applied.
 
   return { all: remoteFiles, changed, added, removed };
 }
