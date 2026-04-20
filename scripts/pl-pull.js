@@ -228,6 +228,18 @@ async function main() {
       setSkillEntry(openclawConfig, updatedSkillEntry);
       saveOpenClawConfig(openclawConfig);
       console.log(`✅ Connected "${skill_collection.name}" (${skill_collection.id}) — pulled ${snapshotFiles.length} files from v${versionNumber}`);
+      // Always report what changed
+      const touchedConnect = [...changed, ...added];
+      if (touchedConnect.length > 0) {
+        const parts = [];
+        if (changed.length) parts.push(`${changed.length} modified`);
+        if (added.length) parts.push(`${added.length} added`);
+        console.log(`\n📋 Changes from v${versionNumber}: ${parts.join(', ')}`);
+        if (changed.length) changed.forEach(f => console.log(`  M ${f}`));
+        if (added.length) added.forEach(f => console.log(`  A ${f}`));
+      } else {
+        console.log(`\n✓ All files already match v${versionNumber}`);
+      }
       return;
     }
 
