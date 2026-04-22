@@ -79,24 +79,38 @@ fi
 # ─── Register cron ────────────────────────────────────────────────────
 header "⏱️  Registering cron"
 
+GUARD_SCRIPT="$SCRIPT_DIR/scripts/cron-guard.sh"
+chmod +x "$GUARD_SCRIPT"
+
+# Register the OpenClaw job (on-demand only — never auto-fires via schedule).
+# cron-guard.sh triggers it with `openclaw cron run` only when changes exist.
 if command -v openclaw &>/dev/null; then
   CRON_NAME="agent-changelog-commit"
   CRON_CMD="bash $SCRIPT_DIR/scripts/commit.sh"
   if openclaw cron list --json 2>/dev/null | jq -e --arg name "$CRON_NAME" '.jobs[] | select(.name == $name)' >/dev/null 2>&1; then
-    success "Cron \`$CRON_NAME\` already registered"
+    success "OpenClaw job \`$CRON_NAME\` already registered"
   elif openclaw cron add \
     --name "$CRON_NAME" \
-    --cron "*/10 * * * *" \
+    --cron "0 0 30 2 *" \
     --message "$CRON_CMD" \
     --session isolated \
     --no-deliver >/dev/null 2>&1; then
-    success "Registered \`$CRON_NAME\` _(every 10 min)_"
+    success "Registered OpenClaw job \`$CRON_NAME\` _(on-demand only)_"
   else
-    warn "Cron registration failed — check with: \`openclaw cron list\`"
+    warn "OpenClaw job registration failed — check with: \`openclaw cron list\`"
   fi
 else
-  warn "Register cron manually after gateway starts:"
-  echo "  \`openclaw cron add --name agent-changelog-commit --cron '*/10 * * * *' --message 'bash $SCRIPT_DIR/scripts/commit.sh' --session isolated --no-deliver\`"
+  warn "Register OpenClaw job manually after gateway starts:"
+  echo "  \`openclaw cron add --name agent-changelog-commit --cron '0 0 30 2 *' --message 'bash $SCRIPT_DIR/scripts/commit.sh' --session isolated --no-deliver\`"
+fi
+
+# Register system crontab to run the guard every 10 min
+CRON_ENTRY="*/10 * * * * bash $GUARD_SCRIPT"
+if crontab -l 2>/dev/null | grep -qF "agent-changelog"; then
+  success "System cron guard already registered"
+else
+  { crontab -l 2>/dev/null | grep -vF "agent-changelog" || true; echo "$CRON_ENTRY"; } | crontab -
+  success "System cron guard registered _(every 10 min)_"
 fi
 
 # ─── Initialize git repo ──────────────────────────────────────────────
